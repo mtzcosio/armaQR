@@ -1,0 +1,236 @@
+<?php
+
+// Punto de entrada general: ejecuta el enrutador MVC cuando se abre la aplicación.
+// Si esta constante ya existe, el archivo se está incluyendo desde una vista dedicada.
+if (!defined('MVC_CONTROLLER_RUNNING')) {
+    require_once __DIR__ . '/app/Core/Application.php';
+    (new App\Core\Application())->run();
+    exit;
+}
+
+// Carga los helpers comunes y el layout de la aplicación antes de renderizar una vista.
+require_once __DIR__ . '/includes/layout.php';
+$planes = datos_planes(true);
+pagina_inicio('Genera códigos QR gratis');
+?>
+<header class="cabecera">
+  <div class="envoltura">
+    <a class="logo" href="<?= url('index.php') ?>"><?= marca(28) ?><?= e(nombre_portal()) ?></a>
+    <nav class="nav-publica" aria-label="Secciones">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#dinamicos">QR dinámicos</a>
+      <a href="#precios">Precios</a>
+      <a href="#preguntas">Preguntas</a>
+    </nav>
+    <div class="cabecera-acciones">
+      <?= boton_tema() ?>
+      <a class="boton boton-fantasma boton-chico" href="<?= url('login.php') ?>">Iniciar sesión</a>
+      <a class="boton boton-principal boton-chico" href="<?= url('registro.php') ?>">Crear cuenta gratis</a>
+    </div>
+  </div>
+</header>
+
+<main id="contenido">
+  <!-- Héroe: el generador funcionando es lo primero que se ve -->
+  <section class="heroe">
+    <div class="envoltura">
+      <div class="heroe-texto">
+        <h1>Tu código QR, listo mientras escribes.</h1>
+        <p>Pega una liga, tu WhatsApp o la clave del WiFi y el código aparece al instante. Crea tu cuenta para guardarlo, cambiar el destino después de imprimirlo y ver cuántas personas lo escanean.</p>
+
+        <form class="generador" data-generador="vista-heroe" data-dominio="<?= e(dominio_portal()) ?>" onsubmit="return false">
+          <div class="segmentado" role="tablist" aria-label="Tipo de contenido">
+            <button type="button" role="tab" data-tipo-boton="url" aria-selected="true">Liga</button>
+            <button type="button" role="tab" data-tipo-boton="whatsapp" aria-selected="false">WhatsApp</button>
+            <button type="button" role="tab" data-tipo-boton="wifi" aria-selected="false">WiFi</button>
+            <button type="button" role="tab" data-tipo-boton="texto" aria-selected="false">Texto</button>
+          </div>
+
+          <div class="generador-panel" data-panel-tipo="url">
+            <label class="oculto-visual" for="g-url">Liga</label>
+            <input class="entrada" id="g-url" type="url" inputmode="url" data-campo="url" placeholder="tunegocio.mx/menu" value="tacoselguero.mx/menu">
+          </div>
+          <div class="generador-panel" data-panel-tipo="whatsapp" hidden>
+            <div class="fila-campos">
+              <div class="campo"><label for="g-tel">Número a 10 dígitos</label><input class="entrada" id="g-tel" inputmode="tel" data-campo="telefono" placeholder="55 1234 5678"></div>
+              <div class="campo"><label for="g-msg">Mensaje inicial</label><input class="entrada" id="g-msg" data-campo="mensaje" placeholder="Hola, quiero hacer un pedido"></div>
+            </div>
+          </div>
+          <div class="generador-panel" data-panel-tipo="wifi" hidden>
+            <div class="fila-campos">
+              <div class="campo"><label for="g-red">Nombre de la red</label><input class="entrada" id="g-red" data-campo="red" placeholder="Cafe-Invitados"></div>
+              <div class="campo"><label for="g-clave">Contraseña</label><input class="entrada" id="g-clave" data-campo="clave" placeholder="••••••••"></div>
+            </div>
+          </div>
+          <div class="generador-panel" data-panel-tipo="texto" hidden>
+            <label class="oculto-visual" for="g-texto">Texto</label>
+            <textarea class="entrada" id="g-texto" data-campo="texto" placeholder="Escribe el texto que quieras mostrar"></textarea>
+          </div>
+
+          <div class="cabecera-acciones">
+            <button class="boton boton-tinta" type="button" data-descargar-png="mi-qr"><?= icono('descargar', 17) ?> Descargar PNG</button>
+            <a class="boton boton-fantasma" href="<?= url('registro.php') ?>">Guardarlo en mi cuenta</a>
+          </div>
+          <p class="generador-nota">Sin registro descargas QR estáticos en PNG. Nunca caducan.</p>
+        </form>
+      </div>
+
+      <div class="heroe-lienzo" id="vista-heroe">
+        <div class="impreso">
+          <p class="impreso-titulo">Escanea el menú</p>
+          <p class="impreso-sub">Mesa 4 · Terraza</p>
+          <div class="qr-vivo" data-qr-vivo data-qr-tam="220" aria-label="Vista previa del código QR" role="img"></div>
+          <div class="impreso-pie"><span>Apunta la cámara</span><strong><?= e(nombre_portal()) ?></strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cómo funciona: es una secuencia real, por eso va numerada -->
+  <section class="seccion seccion-papel" id="como-funciona">
+    <div class="envoltura">
+      <div class="seccion-cabeza">
+        <h2>De la idea al mostrador en tres pasos</h2>
+        <p>No necesitas diseñador ni instalar nada. Todo pasa en el navegador.</p>
+      </div>
+      <div class="pasos">
+        <div class="paso"><h3>Elige qué quieres compartir</h3><p>Una página, tu WhatsApp, la red WiFi, tu tarjeta de contacto o un texto.</p></div>
+        <div class="paso"><h3>Dale tu estilo</h3><p>Cambia los colores y agrega tu logo al centro para que se reconozca tu marca.</p></div>
+        <div class="paso"><h3>Descarga e imprime</h3><p>En PNG para redes, en SVG o PDF para imprenta sin perder calidad.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Estático vs dinámico: la diferencia que explica los planes -->
+  <section class="seccion" id="dinamicos">
+    <div class="envoltura">
+      <div class="seccion-cabeza">
+        <h2>¿Ya imprimiste 500 volantes y cambió tu página?</h2>
+        <p>Con un QR dinámico cambias el destino desde tu cuenta y el código impreso sigue funcionando.</p>
+      </div>
+      <div class="comparar">
+        <div>
+          <h3>QR estático</h3>
+          <p class="lead">El contenido va dentro del código. Si cambia, hay que generar e imprimir uno nuevo.</p>
+          <div class="ruta"><span>Código QR</span><i>lleva a</i><span>tunegocio.mx/menu</span></div>
+          <ul class="lista-check">
+            <li><?= icono('check') ?> Gratis y sin caducidad</li>
+            <li><?= icono('check') ?> Funciona sin internet para WiFi y contacto</li>
+            <li class="no"><?= icono('x') ?> No se puede editar</li>
+            <li class="no"><?= icono('x') ?> No sabes cuántas veces lo escanean</li>
+          </ul>
+        </div>
+        <div>
+          <h3>QR dinámico</h3>
+          <p class="lead">El código apunta a una liga corta de <?= e(nombre_portal()) ?> que tú rediriges cuando quieras.</p>
+          <div class="ruta"><span>Código QR</span><i>lleva a</i><span class="destaca"><?= e(dominio_portal()) ?>/r/Mq8Tz2</span><i>y de ahí a</i><span>el destino que elijas</span></div>
+          <ul class="lista-check">
+            <li><?= icono('check') ?> Cambias el destino sin reimprimir</li>
+            <li><?= icono('check') ?> Ves escaneos por día, ciudad y dispositivo</li>
+            <li><?= icono('check') ?> Lo pausas cuando termina una promoción</li>
+            <li><?= icono('check') ?> Incluido desde el plan Pro</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Usos -->
+  <section class="seccion seccion-papel">
+    <div class="envoltura">
+      <div class="seccion-cabeza">
+        <h2>Lo usan negocios como el tuyo</h2>
+      </div>
+      <div class="usos">
+        <div class="uso"><h3>Restaurantes y cafés</h3><p>El menú en la mesa. Cambias precios o platillos del día sin reimprimir los porta-menús.</p><span class="tipo-qr dinamico">Dinámico</span></div>
+        <div class="uso"><h3>Inmobiliarias</h3><p>Un QR en cada letrero de “Se vende” que lleva a la ficha con fotos. Sabes qué propiedad genera más interés.</p><span class="tipo-qr dinamico">Dinámico</span></div>
+        <div class="uso"><h3>Eventos y bodas</h3><p>Invitación, ubicación y álbum de fotos compartido en el mismo código.</p><span class="tipo-qr dinamico">Dinámico</span></div>
+        <div class="uso"><h3>Tiendas y consultorios</h3><p>Pedidos por WhatsApp, la red WiFi para clientes o tu tarjeta de contacto.</p><span class="tipo-qr">Estático</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Precios -->
+  <section class="seccion" id="precios">
+    <div class="envoltura">
+      <div class="precios-cabeza">
+        <div class="seccion-cabeza">
+          <h2>Empieza gratis. Paga cuando lo necesites.</h2>
+          <p>Precios en pesos mexicanos con IVA incluido. Cancela cuando quieras.</p>
+        </div>
+        <div class="segmentado" role="tablist" aria-label="Periodo de pago">
+          <button type="button" role="tab" data-periodo="mensual" aria-selected="true">Mensual</button>
+          <button type="button" role="tab" data-periodo="anual" aria-selected="false">Anual · 2 meses gratis</button>
+        </div>
+      </div>
+
+      <div class="precios">
+        <?php foreach ($planes as $p):
+            $anualMes = $p['precio_anual'] > 0 ? round($p['precio_anual'] / 12) : 0;
+            $ahorro = $p['precio_mensual'] * 12 - $p['precio_anual'];
+            $recomendado = $p['codigo'] === 'pro';
+        ?>
+        <article class="precio <?= $recomendado ? 'recomendado' : '' ?>"
+                 data-mensual="<?= e(dinero($p['precio_mensual'], false)) ?>"
+                 data-anual-mes="<?= e(dinero($anualMes, false)) ?>"
+                 data-ahorro="<?= $ahorro > 0 ? e('Pagas ' . dinero($p['precio_anual'], false) . ' al año y ahorras ' . dinero($ahorro, false)) : '' ?>">
+          <div class="precio-nombre">
+            <h3><?= e($p['nombre']) ?></h3>
+            <?php if ($recomendado): ?><span class="precio-nota">El más elegido</span><?php endif; ?>
+          </div>
+          <p class="precio-desc"><?= e($p['descripcion']) ?></p>
+          <div>
+            <p class="precio-monto"><span data-monto><?= e(dinero($p['precio_mensual'], false)) ?></span> <small>al mes</small></p>
+            <p class="precio-ahorro" data-ahorro></p>
+          </div>
+          <ul class="lista-check">
+            <?php foreach ($p['caracteristicas'] as $c): ?><li><?= icono('check') ?> <?= e($c) ?></li><?php endforeach; ?>
+          </ul>
+          <a class="boton <?= $recomendado ? 'boton-principal' : 'boton-fantasma' ?> boton-ancho" href="<?= url('registro.php?plan=' . $p['codigo']) ?>">
+            <?= $p['codigo'] === 'gratis' ? 'Crear cuenta gratis' : 'Empezar con ' . e($p['nombre']) ?>
+          </a>
+        </article>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+
+  <!-- Preguntas -->
+  <section class="seccion seccion-papel" id="preguntas">
+    <div class="envoltura">
+      <div class="seccion-cabeza"><h2>Preguntas frecuentes</h2></div>
+      <div class="preguntas">
+        <details><summary>¿Mis QR dejan de funcionar si cancelo?</summary><p>Los QR estáticos funcionan para siempre porque el contenido va dentro del código. Los dinámicos dependen de tu suscripción: si cancelas, siguen activos hasta el fin del periodo pagado y después se pausan. Si vuelves a contratar, se reactivan con la misma liga.</p></details>
+        <details><summary>¿Puedo pagar en OXXO o con transferencia?</summary><p>Sí. Aceptamos tarjeta de crédito y débito, pago en efectivo en OXXO y transferencia SPEI. Los planes anuales también se pueden pagar en una sola exhibición.</p></details>
+        <details><summary>¿Emiten factura?</summary><p>Sí. Captura tus datos fiscales en “Plan y pagos” y la factura se genera automáticamente con cada cobro.</p></details>
+        <details><summary>¿Qué datos ven de quien escanea mi QR?</summary><p>Fecha y hora, ciudad aproximada, tipo de dispositivo y sistema operativo. No guardamos nombres, teléfonos ni direcciones IP completas.</p></details>
+        <details><summary>¿Puedo cambiar de plan después?</summary><p>Cuando quieras. Al subir de plan pagas solo la diferencia proporcional; al bajar, el cambio aplica en tu siguiente cobro.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="envoltura">
+      <div class="llamado">
+        <div>
+          <h2>Crea tu primer QR dinámico hoy</h2>
+          <p>Regístrate gratis y prueba el plan Pro 14 días sin tarjeta.</p>
+        </div>
+        <a class="boton boton-principal" href="<?= url('registro.php?plan=pro') ?>">Crear cuenta gratis</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="pie">
+  <div class="envoltura">
+    <span>© <?= date('Y') ?> <?= e(nombre_portal()) ?>. Hecho en México.</span>
+    <nav aria-label="Legal">
+      <a href="<?= url('privacidad.php') ?>">Aviso de privacidad</a>
+      <a href="<?= url('terminos.php') ?>">Términos y condiciones</a>
+      <?php $correoContacto = configuracion_activa()['contacto_correo'] ?? ''; ?>
+      <?php if ($correoContacto !== ''): ?><a href="mailto:<?= e($correoContacto) ?>"><?= e($correoContacto) ?></a><?php endif; ?>
+    </nav>
+  </div>
+</footer>
+<?php pagina_fin('publico', [CDN_QR]); ?>

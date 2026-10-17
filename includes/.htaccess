@@ -1,0 +1,2 @@
+# Código interno: no debe servirse por HTTP.
+Require all denied

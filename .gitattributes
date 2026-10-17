@@ -1,0 +1,5 @@
+# Fin de línea LF en el repositorio (el servidor es Linux); Git convierte en Windows si hace falta.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

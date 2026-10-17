@@ -1,0 +1,13 @@
+# Sin listados de directorios.
+Options -Indexes
+
+# Bloquea archivos ocultos (.env, .gitignore, .htaccess...) y archivos de respaldo.
+<FilesMatch "(^\.|\.(sql|md|bak|log|ini)$)">
+    Require all denied
+</FilesMatch>
+
+# Ligas cortas de los QR dinámicos: /r/{codigo} → r.php?c={codigo}
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^r/([A-Za-z0-9]{4,12})/?$ r.php?c=$1 [L,QSA]
+</IfModule>
