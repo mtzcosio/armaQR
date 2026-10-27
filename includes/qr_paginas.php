@@ -31,6 +31,52 @@ const QR_PAGINA_MAX_PLATILLOS = 150;
 /** Redes que se pueden enlazar en Redes sociales y Empresa: clave => nombre. */
 const QR_PAGINA_REDES = ['facebook' => 'Facebook', 'instagram' => 'Instagram', 'tiktok' => 'TikTok', 'x' => 'X (Twitter)', 'youtube' => 'YouTube', 'linkedin' => 'LinkedIn'];
 
+/** Paletas de la página (color principal, color de fondo): la primera es la predeterminada. */
+const QR_PAGINA_PALETAS = [
+    ['#172036', '#f4f1ea'], ['#2563eb', '#eaf0fd'], ['#0f766e', '#e7f5f2'], ['#db2777', '#fdf0f6'],
+    ['#ea580c', '#fff3e8'], ['#7c3aed', '#f2edfe'], ['#15803d', '#ebf6ee'], ['#111827', '#ffffff'],
+];
+
+/* ---------------------------------------------------------------------
+ * Modo borrador (vista previa en vivo de app/crear.php)
+ * ------------------------------------------------------------------- */
+
+/**
+ * En modo borrador la página se arma con lo que haya aunque falten datos o tengan errores:
+ * los obligatorios faltantes y los valores inválidos quedan vacíos en lugar de lanzar QrInvalido,
+ * y los archivos elegidos (aún sin subir) se muestran con su URL blob: del navegador.
+ */
+function qr_pagina_borrador(?bool $activar = null): bool
+{
+    static $activo = false;
+    if ($activar !== null) {
+        $activo = $activar;
+    }
+    return $activo;
+}
+
+/** Falta un dato o no es válido: error al guardar, se ignora en la vista previa. */
+function qr_pagina_falta(string $mensaje): void
+{
+    if (!qr_pagina_borrador()) {
+        throw new QrInvalido($mensaje);
+    }
+}
+
+/** URL blob: del navegador para la vista previa de un archivo que todavía no se sube. */
+function qr_pagina_es_blob(mixed $valor): bool
+{
+    return is_string($valor) && preg_match('#^blob:https?://[A-Za-z0-9.\-:\[\]]+/[A-Za-z0-9\-]{8,64}$#', $valor) === 1;
+}
+
+/** Colores de la página (pagina_estilo[primario|secundario]); si no vienen o no son válidos, la paleta predeterminada. */
+function qr_pagina_estilo(array $post): array
+{
+    $e = is_array($post['pagina_estilo'] ?? null) ? $post['pagina_estilo'] : [];
+    $color = fn(string $clave, string $defecto) => is_string($e[$clave] ?? null) && preg_match('/^#[0-9a-f]{6}$/i', $e[$clave]) ? strtolower($e[$clave]) : $defecto;
+    return ['primario' => $color('primario', QR_PAGINA_PALETAS[0][0]), 'secundario' => $color('secundario', QR_PAGINA_PALETAS[0][1])];
+}
+
 /* ---------------------------------------------------------------------
  * Validación de campos
  * ------------------------------------------------------------------- */
@@ -49,7 +95,7 @@ function qr_pagina_url(string $valor, string $etiqueta, bool $obligatoria = fals
     $url = trim($valor);
     if ($url === '') {
         if ($obligatoria) {
-            throw new QrInvalido("Escribe {$etiqueta}.");
+            qr_pagina_falta("Escribe {$etiqueta}.");
         }
         return '';
     }
@@ -57,7 +103,8 @@ function qr_pagina_url(string $valor, string $etiqueta, bool $obligatoria = fals
         $url = 'https://' . $url;
     }
     if (strlen($url) > 2048 || preg_match('/\s/u', $url) || !preg_match('#^https?://[^\s/?\#]+\.[^\s/?\#]+#iu', $url)) {
-        throw new QrInvalido("Revisa {$etiqueta}: no es una dirección web válida.");
+        qr_pagina_falta("Revisa {$etiqueta}: no es una dirección web válida.");
+        return '';
     }
     return $url;
 }
@@ -86,7 +133,8 @@ function qr_pagina_email(string $valor, string $etiqueta, bool $obligatorio = fa
         return '';
     }
     if (!filter_var($valor, FILTER_VALIDATE_EMAIL)) {
-        throw new QrInvalido($valor === '' ? "Escribe {$etiqueta}." : "Revisa {$etiqueta}: no es un correo válido.");
+        qr_pagina_falta($valor === '' ? "Escribe {$etiqueta}." : "Revisa {$etiqueta}: no es un correo válido.");
+        return '';
     }
     return $valor;
 }
@@ -98,7 +146,7 @@ function qr_pagina_telefono(string $valor, string $etiqueta): string
     }
     $digitos = preg_replace('/\D/', '', $valor);
     if (strlen($digitos) < 7 || strlen($digitos) > 15) {
-        throw new QrInvalido("Revisa {$etiqueta}: escribe el número a 10 dígitos (o con lada internacional).");
+        qr_pagina_falta("Revisa {$etiqueta}: escribe el número a 10 dígitos (o con lada internacional).");
     }
     return $valor;
 }
@@ -108,7 +156,7 @@ function qr_pagina_fecha(string $valor, string $etiqueta, bool $conHora, bool $o
 {
     if ($valor === '') {
         if ($obligatoria) {
-            throw new QrInvalido("Escribe {$etiqueta}.");
+            qr_pagina_falta("Escribe {$etiqueta}.");
         }
         return '';
     }
@@ -119,7 +167,8 @@ function qr_pagina_fecha(string $valor, string $etiqueta, bool $conHora, bool $o
             return $d->format($conHora ? 'Y-m-d H:i' : 'Y-m-d');
         }
     }
-    throw new QrInvalido("Revisa {$etiqueta}: la fecha no es válida.");
+    qr_pagina_falta("Revisa {$etiqueta}: la fecha no es válida.");
+    return '';
 }
 
 /** URL para incrustar un video de YouTube o Vimeo, o null si no es de esos sitios. */
@@ -245,7 +294,37 @@ function qr_pagina_contenido(string $tipo, array $post, array $files, array $ant
         'facebook', 'instagram' => $campos['url'],
         default => '',
     };
+    if (!qr_tipo_usa_url($tipo)) {
+        $campos['estilo'] = qr_pagina_estilo($post);
+    }
     return ['campos' => $campos, 'texto' => $texto];
+}
+
+/**
+ * Campos para la vista previa en vivo: lo que lleva capturado el formulario, sin subir archivos
+ * ni exigir datos. En los tipos que redirigen, ['destino' => URL] (o '' si aún no es válida).
+ */
+function qr_pagina_vista_previa(string $tipo, array $post, array $anterior = []): array
+{
+    if (qr_tipo_usa_url($tipo) && !in_array($tipo, ['facebook', 'instagram'], true)) {
+        try {
+            return ['destino' => isset(QR_TIPOS_DINAMICOS[$tipo]) ? qr_contenido($tipo, $post)['texto'] : ''];
+        } catch (QrInvalido) {
+            return ['destino' => ''];
+        }
+    }
+    $v = is_array($post['pg'][$tipo] ?? null) ? $post['pg'][$tipo] : [];
+    $nuevos = [];
+    qr_pagina_borrador(true);
+    try {
+        $campos = qr_pagina_campos($tipo, $v, [], $anterior, $nuevos);
+    } finally {
+        qr_pagina_borrador(false);
+    }
+    if (qr_tipo_usa_url($tipo)) {
+        return ['destino' => $campos['url'] ?? ''];
+    }
+    return $campos + ['estilo' => qr_pagina_estilo($post)];
 }
 
 /** Campos de cada tipo. Los archivos guardados se agregan a $nuevos. */
@@ -265,12 +344,15 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             $nuevos[] = $ruta;
             return $ruta;
         }
+        if (qr_pagina_borrador() && qr_pagina_es_blob($v['vista_' . $campo] ?? null)) {
+            return $v['vista_' . $campo];
+        }
         $previo = is_string($anterior[$campo] ?? null) ? $anterior[$campo] : null;
         if ($previo !== null && !$obligatorio && !empty($v['quitar_' . $campo])) {
             $previo = null;
         }
         if ($previo === null && $obligatorio) {
-            throw new QrInvalido("Sube {$etiqueta}.");
+            qr_pagina_falta("Sube {$etiqueta}.");
         }
         return $previo;
     };
@@ -284,20 +366,20 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
         case 'enlaces':
             $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1000), 'enlaces' => []];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe el título de tu lista de enlaces.');
+                qr_pagina_falta('Escribe el título de tu lista de enlaces.');
             }
             foreach (array_slice(is_array($v['enlaces'] ?? null) ? $v['enlaces'] : [], 0, QR_PAGINA_MAX_ENLACES) as $e) {
                 if (!is_array($e)) continue;
                 $texto = qr_pagina_texto($e, 'texto', 80);
                 $url = qr_pagina_url(qr_pagina_texto($e, 'url', 2048), 'el enlace' . ($texto !== '' ? " «{$texto}»" : ''));
                 if ($url === '') {
-                    if ($texto !== '') throw new QrInvalido("Escribe la dirección del enlace «{$texto}».");
+                    if ($texto !== '') qr_pagina_falta("Escribe la dirección del enlace «{$texto}».");
                     continue;
                 }
                 $c['enlaces'][] = ['texto' => $texto !== '' ? $texto : qr_pagina_dominio($url), 'url' => $url];
             }
             if (!$c['enlaces']) {
-                throw new QrInvalido('Agrega al menos un enlace.');
+                qr_pagina_falta('Agrega al menos un enlace.');
             }
             $c['imagen'] = $archivo('imagen', 'la imagen', 'imagen', false);
             return $c;
@@ -309,7 +391,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                   'web' => qr_pagina_url($t('web', 2048), 'el sitio web'),
                   'direccion' => $t('direccion', 250), 'nota' => $t('nota', 500)];
             if ($c['nombre'] === '') {
-                throw new QrInvalido('Escribe el nombre del contacto.');
+                qr_pagina_falta('Escribe el nombre del contacto.');
             }
             $c['imagen'] = $archivo('imagen', 'la foto', 'imagen', false);
             return $c;
@@ -317,7 +399,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
         case 'menu':
             $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1000), 'secciones' => []];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe el nombre de tu restaurante o del menú.');
+                qr_pagina_falta('Escribe el nombre de tu restaurante o del menú.');
             }
             $platillos = 0;
             foreach (array_slice(is_array($v['secciones'] ?? null) ? $v['secciones'] : [], 0, QR_PAGINA_MAX_SECCIONES) as $s) {
@@ -328,22 +410,22 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                     $platillo = ['nombre' => qr_pagina_texto($p, 'nombre', 120), 'descripcion' => qr_pagina_texto($p, 'descripcion', 300), 'precio' => qr_pagina_texto($p, 'precio', 20)];
                     if (implode('', $platillo) === '') continue;
                     if ($platillo['nombre'] === '') {
-                        throw new QrInvalido('Cada platillo del menú necesita un nombre.');
+                        qr_pagina_falta('Cada platillo del menú necesita un nombre.');
                     }
                     $seccion['platillos'][] = $platillo;
                     $platillos++;
                 }
                 if ($seccion['nombre'] === '' && !$seccion['platillos']) continue;
                 if ($seccion['nombre'] === '') {
-                    throw new QrInvalido('Escribe el nombre de cada sección del menú (por ejemplo, Entradas).');
+                    qr_pagina_falta('Escribe el nombre de cada sección del menú (por ejemplo, Entradas).');
                 }
                 $c['secciones'][] = $seccion;
             }
             if ($platillos === 0) {
-                throw new QrInvalido('Agrega al menos un platillo al menú.');
+                qr_pagina_falta('Agrega al menos un platillo al menú.');
             }
             if ($platillos > QR_PAGINA_MAX_PLATILLOS) {
-                throw new QrInvalido('El menú admite hasta ' . QR_PAGINA_MAX_PLATILLOS . ' platillos.');
+                qr_pagina_falta('El menú admite hasta ' . QR_PAGINA_MAX_PLATILLOS . ' platillos.');
             }
             $c['imagen'] = $archivo('imagen', 'el logo', 'imagen', false);
             return $c;
@@ -354,14 +436,20 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                   'condiciones' => $t('condiciones', 1000), 'boton_texto' => $t('boton_texto', 40),
                   'boton_url' => qr_pagina_url($t('boton_url', 2048), 'el enlace del botón')];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe el título del cupón.');
+                qr_pagina_falta('Escribe el título del cupón.');
             }
             $c['imagen'] = $archivo('imagen', 'la imagen', 'imagen', false);
             return $c;
 
         case 'wifi':
-            $wifi = qr_contenido('wifi', ['red' => $t('red', 32), 'clave' => $t('clave', 63), 'seguridad' => $t('seguridad', 10)]);
-            return ['titulo' => $t('titulo', 120)] + $wifi['campos'];
+            $red = ['red' => $t('red', 32), 'clave' => $t('clave', 63), 'seguridad' => $t('seguridad', 10)];
+            try {
+                $red = qr_contenido('wifi', $red)['campos'];
+            } catch (QrInvalido $exception) {
+                qr_pagina_falta($exception->getMessage());
+                $red['seguridad'] = in_array($red['seguridad'], ['WPA', 'WEP', 'nopass'], true) ? $red['seguridad'] : 'WPA';
+            }
+            return ['titulo' => $t('titulo', 120)] + $red;
 
         case 'evento':
             $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1500),
@@ -370,10 +458,10 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                   'lugar' => $t('lugar', 120), 'direccion' => $t('direccion', 250),
                   'boton_texto' => $t('boton_texto', 40), 'boton_url' => qr_pagina_url($t('boton_url', 2048), 'el enlace de boletos o registro')];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe el nombre del evento.');
+                qr_pagina_falta('Escribe el nombre del evento.');
             }
             if ($c['fin'] !== '' && $c['fin'] < $c['inicio']) {
-                throw new QrInvalido('El evento no puede terminar antes de empezar.');
+                qr_pagina_falta('El evento no puede terminar antes de empezar.');
             }
             $c['imagen'] = $archivo('imagen', 'la imagen', 'imagen', false);
             return $c;
@@ -385,7 +473,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                   'web' => qr_pagina_url($t('web', 2048), 'el sitio web'),
                   'direccion' => $t('direccion', 250), 'horario' => $t('horario', 500), 'redes' => qr_pagina_redes($v)];
             if ($c['nombre'] === '') {
-                throw new QrInvalido('Escribe el nombre de tu negocio.');
+                qr_pagina_falta('Escribe el nombre de tu negocio.');
             }
             $c['imagen'] = $archivo('imagen', 'el logo', 'imagen', false);
             return $c;
@@ -394,7 +482,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1000),
                   'url' => qr_pagina_url($t('url', 2048), 'el enlace del video', true)];
             if (qr_pagina_video_incrustado($c['url']) === null) {
-                throw new QrInvalido('Pega el enlace de un video de YouTube o Vimeo.');
+                qr_pagina_falta('Pega el enlace de un video de YouTube o Vimeo.');
             }
             return $c;
 
@@ -404,7 +492,11 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             $conservar = array_values(array_filter((array) ($anterior['imagenes'] ?? []), fn($r) => is_string($r) && !in_array($r, $quitar, true)));
             $nuevas = array_values(array_filter(is_array($subidos['imagenes'] ?? null) ? $subidos['imagenes'] : [], fn($f) => is_array($f) && qr_pagina_hay_archivo($f)));
             if (count($conservar) + count($nuevas) > QR_PAGINA_MAX_IMAGENES) {
-                throw new QrInvalido('La galería admite hasta ' . QR_PAGINA_MAX_IMAGENES . ' imágenes.');
+                qr_pagina_falta('La galería admite hasta ' . QR_PAGINA_MAX_IMAGENES . ' imágenes.');
+            }
+            if (qr_pagina_borrador()) {
+                $blobs = array_filter((array) ($v['vista_imagenes'] ?? []), 'qr_pagina_es_blob');
+                $conservar = array_slice(array_merge($conservar, array_values($blobs)), 0, QR_PAGINA_MAX_IMAGENES);
             }
             foreach ($nuevas as $i => $file) {
                 $ruta = imagen_guardar_subida($file, QR_PAGINA_CARPETA, 'La imagen ' . ($i + 1), QR_PAGINA_MAX_IMAGEN, 4096);
@@ -412,7 +504,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                 $conservar[] = $ruta;
             }
             if (!$conservar) {
-                throw new QrInvalido('Sube al menos una imagen.');
+                qr_pagina_falta('Sube al menos una imagen.');
             }
             return $c + ['imagenes' => $conservar];
 
@@ -423,7 +515,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             }
             $url = qr_pagina_url($valor, 'el enlace de tu página de Facebook', true);
             if (!qr_pagina_url_de($url, ['facebook.com', 'fb.com', 'fb.me'])) {
-                throw new QrInvalido('Pega el enlace de tu página de Facebook (facebook.com/…).');
+                qr_pagina_falta('Pega el enlace de tu página de Facebook (facebook.com/…).');
             }
             return ['url' => $url];
 
@@ -434,7 +526,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             }
             $url = qr_pagina_url($valor, 'tu usuario o enlace de Instagram', true);
             if (!qr_pagina_url_de($url, ['instagram.com', 'instagr.am'])) {
-                throw new QrInvalido('Escribe tu usuario de Instagram (por ejemplo @tunegocio) o pega el enlace de tu perfil.');
+                qr_pagina_falta('Escribe tu usuario de Instagram (por ejemplo @tunegocio) o pega el enlace de tu perfil.');
             }
             return ['url' => $url];
 
@@ -442,10 +534,10 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1000), 'redes' => qr_pagina_redes($v),
                   'web' => qr_pagina_url($t('web', 2048), 'el sitio web')];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe tu nombre o el de tu negocio.');
+                qr_pagina_falta('Escribe tu nombre o el de tu negocio.');
             }
             if (!$c['redes'] && $c['web'] === '') {
-                throw new QrInvalido('Agrega el enlace de al menos una red social.');
+                qr_pagina_falta('Agrega el enlace de al menos una red social.');
             }
             $c['imagen'] = $archivo('imagen', 'la imagen', 'imagen', false);
             return $c;
@@ -453,7 +545,7 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
         case 'mp3':
             $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1000)];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe el título del audio.');
+                qr_pagina_falta('Escribe el título del audio.');
             }
             $c['audio'] = $archivo('audio', 'el archivo de audio', 'audio', true);
             $c['imagen'] = $archivo('imagen', 'la portada', 'imagen', false);
@@ -464,16 +556,16 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
                   'ios' => qr_pagina_url($t('ios', 2048), 'el enlace de App Store'),
                   'android' => qr_pagina_url($t('android', 2048), 'el enlace de Google Play')];
             if ($c['titulo'] === '') {
-                throw new QrInvalido('Escribe el nombre de tu aplicación.');
+                qr_pagina_falta('Escribe el nombre de tu aplicación.');
             }
             if ($c['ios'] === '' && $c['android'] === '') {
-                throw new QrInvalido('Pega el enlace de tu app en App Store, en Google Play o en ambas.');
+                qr_pagina_falta('Pega el enlace de tu app en App Store, en Google Play o en ambas.');
             }
             if ($c['ios'] !== '' && !qr_pagina_url_de($c['ios'], ['apps.apple.com', 'itunes.apple.com'])) {
-                throw new QrInvalido('El enlace de App Store debe ser de apps.apple.com.');
+                qr_pagina_falta('El enlace de App Store debe ser de apps.apple.com.');
             }
             if ($c['android'] !== '' && !qr_pagina_url_de($c['android'], ['play.google.com'])) {
-                throw new QrInvalido('El enlace de Google Play debe ser de play.google.com.');
+                qr_pagina_falta('El enlace de Google Play debe ser de play.google.com.');
             }
             $c['imagen'] = $archivo('imagen', 'el ícono', 'imagen', false);
             return $c;

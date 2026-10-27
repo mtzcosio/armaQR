@@ -129,6 +129,40 @@ $prueba('Página: enlace escapado', str_contains($publica, 'href="https://a.mx/&
 $prueba('Página: color del QR como acento', str_contains($publica, '--acento: #e4007c'));
 $prueba('Texto sobre acento oscuro es blanco', qr_pagina_sobre_acento('#172036') === '#ffffff' && qr_pagina_sobre_acento('#ffe680') === '#172036');
 
+// --- Colores de la página (paletas) ---
+$prueba('Estilo: colores válidos', qr_pagina_estilo(['pagina_estilo' => ['primario' => '#2563EB', 'secundario' => '#eaf0fd']]) === ['primario' => '#2563eb', 'secundario' => '#eaf0fd']);
+$prueba('Estilo: inválido usa la paleta predeterminada', qr_pagina_estilo(['pagina_estilo' => ['primario' => 'red;x', 'secundario' => ['#fff']]]) === ['primario' => QR_PAGINA_PALETAS[0][0], 'secundario' => QR_PAGINA_PALETAS[0][1]]);
+$conEstilo = qr_pagina_contenido('cupon', ['pg' => ['cupon' => ['titulo' => '2x1']], 'pagina_estilo' => ['primario' => '#0f766e', 'secundario' => '#e7f5f2']], []);
+$prueba('Estilo: se guarda en las páginas', ($conEstilo['campos']['estilo']['primario'] ?? '') === '#0f766e');
+$prueba('Estilo: no en los que redirigen', !isset(qr_pagina_contenido('facebook', ['pg' => ['facebook' => ['url' => 'cafeluna']], 'pagina_estilo' => ['primario' => '#0f766e']], [])['campos']['estilo']));
+$qr['contenido'] = json_encode(['tipo' => 'cupon', 'campos' => $conEstilo['campos']]);
+$qr['tipo_contenido'] = 'cupon';
+ob_start();
+qr_pagina_mostrar($qr);
+$publica = ob_get_clean();
+$prueba('Página: usa los colores elegidos', str_contains($publica, '--acento: #0f766e') && str_contains($publica, '--fondo-pagina: #e7f5f2'));
+
+// --- Vista previa en vivo (modo borrador) ---
+$prueba('Borrador: faltan datos y no falla', qr_pagina_vista_previa('menu', ['pg' => ['menu' => []]])['secciones'] === []);
+$prueba('Borrador: URL inválida queda vacía', qr_pagina_vista_previa('cupon', ['pg' => ['cupon' => ['titulo' => 'X', 'boton_url' => 'no es url']]])['boton_url'] === '');
+$prueba('Borrador: se apaga al terminar', !qr_pagina_borrador() && $falla('menu', []) !== null);
+$prueba('Borrador: destino de los que redirigen', qr_pagina_vista_previa('instagram', ['pg' => ['instagram' => ['url' => '@cafeluna']]]) === ['destino' => 'https://www.instagram.com/cafeluna/']);
+$blob = 'blob:http://localhost:8012/0b8f7a2e-1c3d-4e5f-9a8b-7c6d5e4f3a2b';
+$prueba('Blob: solo URL blob: del navegador', qr_pagina_es_blob($blob) && !qr_pagina_es_blob('javascript:alert(1)') && !qr_pagina_es_blob('blob:http://x/"><script>'));
+$vistaMp3 = qr_pagina_vista_previa('mp3', ['pg' => ['mp3' => ['titulo' => 'E1', 'vista_audio' => $blob, 'vista_imagen' => 'assets/uploads/paginas/ajeno.png']]]);
+$prueba('Blob: el archivo elegido se ve en la vista previa', $vistaMp3['audio'] === $blob && $vistaMp3['imagen'] === null);
+$prueba('Blob: nunca al guardar', $falla('mp3', ['titulo' => 'E1', 'vista_audio' => $blob]) !== null);
+$prueba('Blob: galería con máximo de imágenes', count(qr_pagina_vista_previa('imagenes', ['pg' => ['imagenes' => ['vista_imagenes' => array_fill(0, 15, $blob)]]])['imagenes']) === QR_PAGINA_MAX_IMAGENES);
+ob_start();
+qr_pagina_mostrar(['tipo_contenido' => 'video', 'campos' => qr_pagina_vista_previa('video', ['pg' => ['video' => []]]), 'codigo_corto' => '', 'diseno' => '{}', 'marca_agua' => 0, 'activo' => 1], 'telefono');
+$telefono = ob_get_clean();
+$prueba('Teléfono: lo que falta se señala', str_contains($telefono, 'micrositio-vacio') && !str_contains($telefono, 'micrositio-aviso') && !str_contains($telefono, 'micrositio-marca'));
+
+// --- Formulario: secciones plegables y diseño de la página ---
+$prueba('Secciones plegables en cada panel', substr_count($html, '<details class="acordeon"') >= count(QR_TIPOS_DINAMICOS) - 2);
+$diseno = qr_pagina_grupo_diseno(['primario' => '#2563eb', 'secundario' => '#eaf0fd']);
+$prueba('Diseño: marca la paleta elegida', substr_count($diseno, 'aria-pressed="true"') === 1 && str_contains($diseno, 'name="pagina_estilo[primario]"'));
+
 if ($fallas) {
     fwrite(STDERR, "Fallaron:\n  - " . implode("\n  - ", $fallas) . "\n");
     exit(1);

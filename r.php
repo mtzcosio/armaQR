@@ -60,7 +60,7 @@ if ($motivo === null || $vistaPrevia) {
         exit;
     }
     require_once __DIR__ . '/includes/qr_pagina_vista.php';
-    qr_pagina_mostrar($qr, $vistaPrevia);
+    qr_pagina_mostrar($qr, $vistaPrevia ? 'vista_previa' : 'publico');
     exit;
 }
 

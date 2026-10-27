@@ -384,6 +384,7 @@
 
     // Solo el panel del tipo (y modo) elegido queda visible; los <fieldset> ocultos se deshabilitan
     // para que sus campos y archivos no se envíen.
+    let despuesDeTipo = () => {};
     function mostrarTipo(nuevo) {
       tipo = nuevo;
       $$('[data-panel-tipo]', form).forEach(p => {
@@ -393,6 +394,7 @@
       });
       $$('[data-tipo-boton]', form).forEach(b => b.setAttribute('aria-selected', String(b.dataset.tipoBoton === tipo)));
       actualizar();
+      despuesDeTipo();
     }
     $$('[data-tipo-boton]', form).forEach(b => b.addEventListener('click', () => mostrarTipo(b.dataset.tipoBoton)));
     $$('[name="tipo_contenido"]', form).forEach(r => r.addEventListener('change', () => mostrarTipo(r.value)));
@@ -481,8 +483,140 @@
       notificar('Descargaste tu QR en PDF');
     }));
 
+    /* --- Asistente de pasos y teléfono de vista previa ("Crear QR") --- */
+    // 1. Tipo de QR · 2. Contenido · 3. Diseño del QR. El teléfono muestra la página del QR
+    // dinámico en vivo (app/vista-pagina.php la arma con lo capturado, sin guardar) o el código.
+    let alIniciar = null;
+    if (form.dataset.pasos !== undefined) {
+      const secciones = $$('[data-paso]', form);
+      const pestanas = $('[data-vista-pestanas]', vista);
+      const iframe = $('[data-vista-pagina]', vista);
+      const pantallaQR = $('[data-telefono-qr]', vista);
+      let paso = 1;
+      let pestana = 'pagina';
+
+      const conPagina = () => {
+        const r = form.querySelector('[name="tipo_contenido"]:checked');
+        return esDinamico() && !!(r && r.closest('[data-con-pagina]'));
+      };
+
+      // Archivos elegidos y aún sin subir: se ven en el teléfono con su URL blob: (una por archivo).
+      const blobs = new WeakMap();
+      const blobDe = f => { if (!blobs.has(f)) blobs.set(f, URL.createObjectURL(f)); return blobs.get(f); };
+      let pedido = 0;
+      async function cargarVista() {
+        if (pestana !== 'pagina' || !esDinamico()) return;
+        const datos = new FormData(form);
+        [...new Set(datos.keys())].forEach(k => { if (datos.getAll(k).some(v => v instanceof File)) datos.delete(k); });
+        const panel = form.querySelector('[data-panel-pagina]:not([hidden])');
+        if (panel) {
+          $$('input[type="file"]', panel).forEach(f => [...f.files].forEach(a =>
+            datos.append(f.name.replace(/\[(\w+)\](\[\])?$/, '[vista_$1]$2'), blobDe(a))));
+        }
+        const n = ++pedido;
+        try {
+          const r = await fetch(form.dataset.vistaUrl, { method: 'POST', body: datos, credentials: 'same-origin' });
+          const html = r.ok ? await r.text() : '';
+          if (!html || n !== pedido) return;
+          let y = 0;
+          try { y = iframe.contentWindow.scrollY; } catch (e) { y = 0; }
+          iframe.onload = () => { try { iframe.contentWindow.scrollTo(0, y); } catch (e) { /* nada */ } };
+          iframe.srcdoc = html;
+        } catch (e) {
+          // Sin conexión: se queda la última vista.
+        }
+      }
+      const pedirVista = debounce(cargarVista, 350);
+
+      function mostrarPestana(nueva) {
+        pestana = esDinamico() ? nueva : 'qr';
+        if (pestanas) {
+          pestanas.hidden = !esDinamico();
+          $$('[data-vista-pestana]', pestanas).forEach(b => b.setAttribute('aria-selected', String(b.dataset.vistaPestana === pestana)));
+        }
+        iframe.hidden = pestana !== 'pagina';
+        pantallaQR.hidden = pestana === 'pagina';
+        if (pestana === 'pagina') pedirVista();
+      }
+      if (pestanas) $$('[data-vista-pestana]', pestanas).forEach(b => b.addEventListener('click', () => mostrarPestana(b.dataset.vistaPestana)));
+
+      function mostrarPaso(n) {
+        paso = n;
+        secciones.forEach(s => { s.hidden = s.dataset.paso !== String(n); });
+        $$('[data-ir-paso]', form).forEach(b => {
+          const k = parseInt(b.dataset.irPaso, 10);
+          b.classList.toggle('activo', k === n);
+          b.classList.toggle('hecho', k < n);
+          if (k === n) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+        });
+        $('[data-paso-atras]', form).hidden = n === 1;
+        $('[data-paso-siguiente]', form).hidden = n === 3;
+        $('[data-paso-guardar]', form).hidden = n !== 3;
+        const guardar = $('[data-guardar-siempre]', form);
+        if (guardar) guardar.hidden = n === 3;
+        mostrarPestana(n === 3 ? 'qr' : 'pagina');
+      }
+
+      // Antes de pasar al diseño se revisa el contenido: el primer campo con error se abre y se señala.
+      function irPaso(n) {
+        n = Math.max(1, Math.min(3, n));
+        if (n > 2 && paso <= 2) {
+          const invalido = $$('input, select, textarea', $('[data-paso="2"]', form))
+            .find(c => c.willValidate && !c.checkValidity() && !c.closest('[data-panel-tipo][hidden]'));
+          if (invalido) {
+            mostrarPaso(2);
+            const d = invalido.closest('details');
+            if (d) d.open = true;
+            invalido.reportValidity();
+            return;
+          }
+        }
+        mostrarPaso(n);
+        const arriba = form.getBoundingClientRect().top + window.scrollY - 16;
+        if (window.scrollY > arriba) window.scrollTo({ top: arriba, behavior: 'smooth' });
+      }
+      $$('[data-ir-paso]', form).forEach(b => b.addEventListener('click', () => irPaso(parseInt(b.dataset.irPaso, 10))));
+      $('[data-paso-atras]', form).addEventListener('click', () => irPaso(paso - 1));
+      $('[data-paso-siguiente]', form).addEventListener('click', () => irPaso(paso + 1));
+      // Elegir un tipo con el mouse lleva directo al contenido (con el teclado solo se marca).
+      $$('.tipo-contenido label', form).forEach(l => l.addEventListener('click', ev => {
+        if (ev.detail > 0 && ev.target.tagName !== 'INPUT') setTimeout(() => irPaso(2), 150);
+      }));
+      // Si al guardar falta un dato en otro paso o en una sección cerrada, se muestra.
+      form.addEventListener('invalid', ev => {
+        const seccion = ev.target.closest('[data-paso]');
+        if (seccion && seccion.hidden) mostrarPaso(parseInt(seccion.dataset.paso, 10));
+        const d = ev.target.closest('details');
+        if (d) d.open = true;
+      }, true);
+
+      // Paletas de la página: llenan los dos colores; un color a mano desmarca la paleta.
+      const colores = $$('[data-pagina-color]', form);
+      const marcarPaleta = () => {
+        const actual = colores.map(c => c.value.toLowerCase()).join(' ');
+        $$('[data-paleta]', form).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.paleta === actual)));
+      };
+      $$('[data-paleta]', form).forEach(b => b.addEventListener('click', () => {
+        b.dataset.paleta.split(' ').forEach((c, i) => { if (colores[i]) colores[i].value = c; });
+        marcarPaleta();
+        pedirVista();
+      }));
+      colores.forEach(c => c.addEventListener('input', marcarPaleta));
+
+      form.addEventListener('input', () => pedirVista());
+      form.addEventListener('change', () => pedirVista());
+      despuesDeTipo = () => {
+        const solo = $('[data-solo-pagina]', form);
+        if (solo) solo.hidden = !conPagina();
+        $$('[data-solo-dinamico]', form).forEach(x => { x.hidden = !esDinamico(); });
+        mostrarPestana(paso === 3 ? 'qr' : 'pagina');
+      };
+      alIniciar = () => mostrarPaso(parseInt(form.dataset.pasoInicial || '1', 10));
+    }
+
     tipo = ajustarTiposPorModo() || tipo;
     mostrarTipo(tipo);
+    if (alIniciar) alIniciar();
   });
 
   /* --- Listas repetibles (enlaces, secciones y platillos del menú) --- */
@@ -501,6 +635,7 @@
       const plantilla = $(':scope > template[data-lista-plantilla]', lista);
       const html = plantilla.innerHTML.split(lista.dataset.token).join('n' + (++indiceLista));
       items.insertAdjacentHTML('beforeend', html);
+      items.dispatchEvent(new Event('input', { bubbles: true }));
       const nuevo = items.lastElementChild;
       const primero = nuevo && nuevo.querySelector('input, textarea, select');
       if (primero) primero.focus();
@@ -513,9 +648,11 @@
       if (items.children.length <= 1) {
         // Siempre queda uno: se vacía en lugar de quitarlo.
         $$('input, textarea', item).forEach(c => { c.value = ''; });
-        return;
+      } else {
+        item.remove();
       }
-      item.remove();
+      // Avisa al formulario (la vista previa del teléfono se actualiza).
+      items.dispatchEvent(new Event('input', { bubbles: true }));
     }
   });
 

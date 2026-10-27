@@ -66,7 +66,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 | Carpeta | Qué hay |
 |---|---|
 | raíz | Páginas públicas: `index.php` (landing + generador), `login`, `registro`, `recuperar`, `restablecer`, `verificar`, `privacidad`, `terminos`, `r.php` |
-| [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar), `estadisticas`, `csv` (masivo), `plan` |
+| [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar en 3 pasos: tipo, contenido y diseño del QR, con un teléfono de vista previa), `vista-pagina` (POST: HTML de la vista previa en vivo), `estadisticas`, `csv` (masivo), `plan` |
 | [admin/](admin/) | Panel admin: `index`, `usuarios`/`usuario`, `qrs` (moderación), `planes`, `pagos`, `correos`/`correo`/`correo-variables`/`correo-ver`, `legales`/`legal`, `configuracion` |
 | [auth/](auth/) | **Endpoints POST** (acciones): login, registro, logout, qr, qr-csv, pago, planes, usuarios, correos, legales, configuracion, recuperar, restablecer, verificar. Validan método, CSRF y permisos, luego `flash()` + `redirigir()` (PRG) |
 | [includes/](includes/) | Librerías de funciones con prefijo por módulo (ver abajo) |
@@ -81,13 +81,15 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 - `seguridad.php`: inicia la sesión, `redirigir()`, `csrf_token()/csrf_campo()/csrf_valido()`, `flash()/flash_tomar()`, `limite_*()` (bloqueo por intentos fallidos, guardado en archivos).
 - `datos.php`: consultas `datos_*()` (planes, usuarios, QR, pagos, series de escaneos, resumen admin), `configuracion_activa()`, `nombre_portal()`, `dominio_portal()`.
 - `qr.php`: `qr_contenido()` (debe coincidir con `construirContenido()` de app.js), límites de plan (`qr_limite_alcanzado`, `qr_ajustar_al_plan`: al bajar de plan pausa los dinámicos más nuevos que excedan el límite), `qr_insertar`, `qr_por_codigo`, `qr_registrar_escaneo` (IP como `sha256(ip + sal)`, la sal se guarda en `configuracion.escaneos_sal`), detección de robots y agente.
-- `qr_tipos.php`: catálogo `QR_TIPOS` (estáticos) y `QR_TIPOS_DINAMICOS` (nombre, descripción, modo `redireccion`|`pagina`), `qr_tipo_usa_url()`, `qr_tipo_nombre()`. Lo carga `datos.php`.
+- `qr_tipos.php`: catálogo `QR_TIPOS` (estáticos) y `QR_TIPOS_DINAMICOS` (nombre, descripción, modo `redireccion`|`pagina`, ícono de `icono()`), `qr_tipo_usa_url()`, `qr_tipo_nombre()`. Lo carga `datos.php`.
 - `qr_paginas.php`: páginas de los dinámicos.
   - `qr_pagina_contenido()` valida los campos `pg[tipo][...]` y guarda los archivos en `assets/uploads/paginas/`. Devuelve `['campos', 'texto']`; `texto` es `''` en los tipos de página, que guardan `url_destino = ''`.
   - Los archivos solo viven en las claves `QR_PAGINA_CAMPOS_ARCHIVO` (`qr_pagina_rutas()`). Al editar se borran los que dejan de usarse.
+  - Las páginas guardan sus colores en `campos.estilo` (`primario`, `secundario`; paletas en `QR_PAGINA_PALETAS`, campo `pagina_estilo[...]`). Las guardadas antes usan el color del QR.
+  - Modo borrador (`qr_pagina_borrador()`, `qr_pagina_vista_previa()`): arma la página aunque falten datos, para la vista previa. Las validaciones usan `qr_pagina_falta()` en lugar de lanzar directo. Los archivos aún sin subir llegan como URL `blob:` en `pg[tipo][vista_campo]`, solo en este modo.
   - También genera los `.vcf` y `.ics` y elige la tienda para Aplicaciones.
-- `qr_paginas_form.php`: un `<fieldset data-panel-tipo data-panel-modo="dinamico">` por tipo en `app/crear.php`. El JS deshabilita los ocultos para que no se envíen. Las listas repetibles usan `<template data-lista-plantilla>` con los marcadores `__i__` y `__j__`.
-- `qr_pagina_vista.php`: `qr_pagina_mostrar()`, la página pública que muestra `r.php`. El color del QR es el acento.
+- `qr_paginas_form.php`: un `<fieldset data-panel-tipo data-panel-modo="dinamico">` por tipo en `app/crear.php`, con sus campos en secciones plegables (`qr_pagina_grupo()`, `<details class="acordeon">`), más la sección de colores `qr_pagina_grupo_diseno()`. El JS deshabilita los ocultos para que no se envíen. Las listas repetibles usan `<template data-lista-plantilla>` con los marcadores `__i__` y `__j__`.
+- `qr_pagina_vista.php`: `qr_pagina_mostrar($qr, $modo)`, la página que muestra `r.php` (`publico` o `vista_previa`) y el teléfono de `app/crear.php` (`telefono`, con `$qr['campos']` sin guardar).
   - `r.php?descargar=vcf|ics` sirve los archivos y no cuenta como escaneo.
   - `?vista_previa=1` (dueño o admin) muestra la página sin contar escaneo, aunque el QR esté pausado.
 - `qr_csv.php`: lectura/validación/escritura de CSV para la creación masiva.
