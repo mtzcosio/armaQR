@@ -8,6 +8,8 @@ assets/uploads/qr/*
 assets/uploads/brand/*
 !assets/uploads/qr/.gitkeep
 !assets/uploads/brand/.gitkeep
+assets/uploads/paginas/*
+!assets/uploads/paginas/.gitkeep
 
 # Sistema y editores
 .DS_Store

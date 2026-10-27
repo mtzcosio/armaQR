@@ -12,6 +12,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../app/Core/Auth.php';
+require_once __DIR__ . '/qr_tipos.php';
 
 /** Días que un plan de pago sigue activo tras vencer su periodo, mientras llega la renovación. */
 const PAGOS_GRACIA_DIAS = 3;
@@ -306,7 +307,10 @@ function datos_qrs(?int $usuarioId = null): array
         'tipo' => $f['tipo'],
         'tipo_contenido' => $f['tipo_contenido'],
         'codigo_corto' => $f['codigo_corto'],
-        'destino' => $f['tipo'] === 'dinamico' ? (string) $f['url_destino'] : datos_qr_contenido_texto($f['contenido']),
+        // Un dinámico de tipo página no tiene URL de destino: muestra su propia página.
+        'destino' => $f['tipo'] === 'dinamico'
+            ? ((string) $f['url_destino'] !== '' ? (string) $f['url_destino'] : 'Página de ' . qr_tipo_nombre($f['tipo_contenido']))
+            : datos_qr_contenido_texto($f['contenido']),
         'activo' => (bool) $f['activo'],
         'total_escaneos' => (int) $f['total_escaneos'],
         'ultimo_escaneo' => $f['ultimo_escaneo'],

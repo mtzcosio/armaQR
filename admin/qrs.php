@@ -89,6 +89,9 @@ pagina_inicio('Códigos QR', 'admin', 'qrs');
                 <?php endif; ?>
               </form>
               <button class="boton-icono" type="button" title="Copiar liga corta" aria-label="Copiar liga corta" data-copiar="https://<?= e(dominio_portal()) ?>/r/<?= e($q['codigo_corto']) ?>" data-copiar-mensaje="Copiaste la liga corta"><?= icono('copiar') ?></button>
+              <?php if (!qr_tipo_usa_url($q['tipo_contenido'])): ?>
+                <a class="boton-icono" href="<?= e(url('r/' . $q['codigo_corto']) . '?vista_previa=1') ?>" target="_blank" rel="noopener" title="Ver página (no cuenta como escaneo)" aria-label="Ver la página de <?= e($q['nombre']) ?>"><?= icono('ojo') ?></a>
+              <?php endif; ?>
             <?php endif; ?>
           </td>
         </tr>

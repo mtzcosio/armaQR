@@ -709,3 +709,69 @@ fieldset.sin-borde:disabled { opacity: .6; }
 .legal-contenido li { margin-bottom: 6px; }
 .legal-contenido a { color: var(--rosa-oscuro); }
 .legal-contenido blockquote { border-left: 3px solid var(--linea); padding-left: 14px; color: var(--gris); }
+
+/* ---------- Crear QR: tarjetas de tipo y páginas de los dinámicos ---------- */
+.tipo-contenido-tarjetas { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.tipo-contenido-tarjetas span { justify-items: start; text-align: left; gap: 2px; padding: 11px 12px; height: 100%; }
+.tipo-contenido-tarjetas small { font-size: 12.5px; font-weight: 400; line-height: 1.35; color: var(--gris); }
+.tipo-contenido-tarjetas input:checked + span small { color: inherit; }
+.panel-tipo { border: 0; margin: 0; padding: 0; min-width: 0; }
+.campo-completo { grid-column: 1 / -1; }
+.opcional { font-weight: 400; color: var(--gris); }
+.archivo-actual { margin: 0; }
+.lista-repetible, .lista-items { display: grid; gap: 10px; }
+.lista-repetible > .boton { justify-self: start; }
+.lista-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 12px; border: 1px solid var(--linea); border-radius: var(--r); background: var(--superficie-alterna); }
+.lista-item-cuerpo { display: grid; gap: 12px; min-width: 0; }
+.lista-item-chico { padding: 10px; background: var(--blanco); }
+.galeria-editar { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.galeria-editar label { display: grid; gap: 6px; }
+.galeria-editar img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-chico); border: 1px solid var(--linea); }
+
+/* ---------- Página pública de un QR dinámico (r.php) ---------- */
+/* --acento es el color del QR; --sobre-acento-pagina, blanco o tinta según su contraste. */
+.area-pagina-qr { background: var(--papel); }
+.micrositio { --acento: var(--tinta); --sobre-acento-pagina: var(--blanco); min-height: 100vh; display: grid; align-content: start; justify-items: center; gap: 16px; padding: 24px 16px 40px; }
+.micrositio-aviso { width: min(560px, 100%); display: flex; gap: 8px; align-items: center; margin: 0; padding: 10px 14px; border-radius: var(--r); background: var(--ambar-claro); color: var(--ambar); font-size: 14px; }
+.micrositio-tarjeta { width: min(560px, 100%); background: var(--blanco); border-radius: var(--r-grande); box-shadow: var(--sombra); overflow: hidden; border-top: 6px solid var(--acento); }
+.micrositio-cabeza { display: grid; justify-items: center; gap: 8px; padding: 28px 22px 18px; text-align: center; }
+.micrositio-cabeza h1 { margin: 0; font-family: var(--fuente-titulo); font-size: clamp(24px, 6vw, 32px); line-height: 1.15; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.micrositio-imagen { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; border: 1px solid var(--linea); }
+.micrositio-imagen.micrositio-portada { width: 100%; height: auto; max-height: 300px; border-radius: var(--r); }
+.micrositio-sub { margin: 0; color: var(--gris); font-weight: 600; }
+.micrositio-texto { margin: 0; color: var(--gris); overflow-wrap: anywhere; }
+.micrositio-centro { text-align: center; }
+.micrositio-descuento { margin: 0; font-family: var(--fuente-titulo); font-size: 40px; font-weight: 800; line-height: 1; color: var(--acento); }
+.micrositio-cuerpo { display: grid; gap: 12px; padding: 4px 22px 26px; }
+.micrositio-boton { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 12px 18px; border: 1.5px solid var(--acento); border-radius: var(--r); background: var(--acento); color: var(--sobre-acento-pagina); font: inherit; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; }
+.micrositio-boton:hover { filter: brightness(1.1); }
+.micrositio-boton:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+.micrositio-boton.secundario { background: transparent; color: var(--tinta); border-color: var(--linea); }
+.micrositio-datos { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--linea); }
+.micrositio-datos li { display: grid; gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.micrositio-datos span { font-size: 13px; color: var(--gris); }
+.micrositio-datos a { color: var(--tinta); font-weight: 600; overflow-wrap: anywhere; }
+.micrositio-datos p { margin: 0; }
+.micrositio-clave { font-family: ui-monospace, Consolas, monospace; font-size: 18px; overflow-wrap: anywhere; }
+.micrositio-seccion h2 { margin: 8px 0 2px; padding-bottom: 6px; border-bottom: 2px solid var(--acento); font-family: var(--fuente-titulo); font-size: 20px; }
+.micrositio-menu { list-style: none; margin: 0; padding: 0; }
+.micrositio-menu li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px dashed var(--linea); }
+.micrositio-menu p { margin: 2px 0 0; font-size: 14px; color: var(--gris); }
+.micrositio-precio { font-weight: 700; white-space: nowrap; }
+.micrositio-codigo { display: grid; gap: 8px; justify-items: center; padding: 18px; border: 2px dashed var(--acento); border-radius: var(--r); text-align: center; }
+.micrositio-codigo span { font-size: 13px; color: var(--gris); }
+.micrositio-codigo strong { font-family: ui-monospace, Consolas, monospace; font-size: 26px; letter-spacing: .08em; overflow-wrap: anywhere; }
+.micrositio-codigo .micrositio-boton { width: 100%; }
+.micrositio-vigencia { margin: 0; text-align: center; font-weight: 600; }
+.micrositio-vigencia.vencido { color: var(--rojo); }
+.micrositio-letra-chica { margin: 0; font-size: 13px; color: var(--gris); }
+.micrositio-redes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.micrositio-video { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r); background: var(--oscuro); }
+.micrositio-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.micrositio-galeria { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.micrositio-galeria img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-chico); }
+.micrositio-pdf { width: 100%; height: 520px; border: 1px solid var(--linea); border-radius: var(--r); }
+.micrositio-audio { width: 100%; }
+.micrositio-marca { margin: 0; font-size: 13px; color: var(--gris); }
+.micrositio-marca a { color: inherit; font-weight: 600; }
+@media (max-width: 700px) { .micrositio-pdf { display: none; } }

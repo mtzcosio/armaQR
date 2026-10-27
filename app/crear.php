@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/layout.php';
-require_once __DIR__ . '/../includes/qr.php';
+require_once __DIR__ . '/../includes/qr_paginas_form.php';
 
 $usuario = datos_usuario_actual();
 $plan    = $usuario['plan_datos'];
@@ -26,6 +26,20 @@ $estaticoGuardado = $editar && $editar['tipo'] === 'estatico';
 $color = $previo['color'] ?? $diseno['color'];
 $fondo = $previo['fondo'] ?? $diseno['fondo'];
 
+// Páginas de los dinámicos: lo capturado (tras un error) o lo guardado del tipo que se edita.
+$guardadosPagina = $editar && $esDinamico ? [$editar['tipo_contenido'] => $guardado['campos']] : [];
+$valoresPagina = [];
+foreach (array_keys(QR_TIPOS_DINAMICOS) as $t) {
+    $valoresPagina[$t] = $previo['pg'][$t] ?? ($guardadosPagina[$t] ?? []);
+}
+
+// Tarjetas de tipo de contenido: los dinámicos (con su descripción) y Texto, que solo es estático.
+$tarjetasTipo = [];
+foreach (QR_TIPOS_DINAMICOS as $t => $info) {
+    $tarjetasTipo[$t] = $info + ['modos' => isset(QR_TIPOS[$t]) ? 'estatico dinamico' : 'dinamico'];
+}
+$tarjetasTipo['texto'] = ['nombre' => 'Texto', 'descripcion' => 'Muestra un texto al escanear', 'modos' => 'estatico'];
+
 // Cuánto queda del plan (solo al crear)
 $usoEstaticos = qr_estaticos_del_mes((int) $usuario['id']);
 $usoDinamicos = qr_dinamicos_activos((int) $usuario['id']);
@@ -39,12 +53,15 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
     <a class="miga" href="<?= url_app('index.php') ?>">← Mis QR</a>
     <h1><?= $editar ? 'Editar “' . e($editar['nombre']) . '”' : 'Crear QR' ?></h1>
     <p><?= $editar
-        ? ($esDinamico ? 'Cambia el destino y el código impreso seguirá funcionando.' : 'Puedes cambiar el nombre y el diseño. El contenido de un QR estático ya no cambia.')
+        ? ($esDinamico ? 'Cambia el contenido y el código impreso seguirá funcionando.' : 'Puedes cambiar el nombre y el diseño. El contenido de un QR estático ya no cambia.')
         : 'Elige el contenido y la vista previa se actualiza mientras escribes.' ?></p>
   </div>
   <?php if ($editar && $esDinamico): ?>
     <div class="encabezado-acciones">
       <button class="boton boton-fantasma" type="button" data-copiar="<?= e(qr_liga_corta($editar['codigo_corto'])) ?>" data-copiar-mensaje="Copiaste la liga corta"><?= icono('copiar', 17) ?> <?= e(dominio_portal() . '/r/' . $editar['codigo_corto']) ?></button>
+      <?php if (!qr_tipo_usa_url($editar['tipo_contenido'])): ?>
+        <a class="boton boton-fantasma" href="<?= e(url('r/' . $editar['codigo_corto']) . '?vista_previa=1') ?>" target="_blank" rel="noopener"><?= icono('ojo', 17) ?> Ver página</a>
+      <?php endif; ?>
       <a class="boton boton-fantasma" href="<?= url_app('estadisticas.php', ['qr' => $editar['id']]) ?>"><?= icono('grafica', 17) ?> Estadísticas</a>
     </div>
   <?php endif; ?>
@@ -97,12 +114,11 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
       <?php endif; ?>
       <fieldset class="sin-borde" <?= $estaticoGuardado ? 'disabled' : '' ?>>
         <legend class="oculto-visual">Tipo de contenido y datos</legend>
-        <div class="tipo-contenido" role="radiogroup" aria-label="Tipo de contenido">
-          <?php foreach (QR_TIPOS as $valor => $texto): ?>
-            <label <?= in_array($valor, QR_TIPOS_DINAMICOS, true) ? '' : 'data-solo-estatico' ?>><input type="radio" name="tipo_contenido" value="<?= $valor ?>" <?= $valor === $tipoInicial ? 'checked' : '' ?>><span><?= e($texto) ?></span></label>
+        <div class="tipo-contenido tipo-contenido-tarjetas" role="radiogroup" aria-label="Tipo de contenido">
+          <?php foreach ($tarjetasTipo as $valor => $t): ?>
+            <label data-modos="<?= $t['modos'] ?>" title="<?= e($t['descripcion']) ?>"><input type="radio" name="tipo_contenido" value="<?= $valor ?>" <?= $valor === $tipoInicial ? 'checked' : '' ?>><span><strong><?= e($t['nombre']) ?></strong><small><?= e($t['descripcion']) ?></small></span></label>
           <?php endforeach; ?>
         </div>
-        <p class="texto-chico texto-gris" data-nota-dinamico hidden>Un QR dinámico lleva a una página: elige Liga o WhatsApp.</p>
 
         <div data-panel-tipo="url" class="campo">
           <label for="c-url">Dirección web</label>
@@ -112,7 +128,7 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
           <div class="campo"><label for="c-tel">Número a 10 dígitos</label><input class="entrada" id="c-tel" name="telefono" inputmode="tel" data-campo="telefono" placeholder="55 1234 5678" value="<?= $campo('telefono') ?>"></div>
           <div class="campo"><label for="c-msg">Mensaje inicial (opcional)</label><input class="entrada" id="c-msg" name="mensaje" maxlength="500" data-campo="mensaje" placeholder="Hola, quiero hacer un pedido" value="<?= $campo('mensaje') ?>"></div>
         </div>
-        <div data-panel-tipo="wifi" class="fila-campos" hidden>
+        <div data-panel-tipo="wifi" data-panel-modo="estatico" class="fila-campos" hidden>
           <div class="campo"><label for="c-red">Nombre de la red</label><input class="entrada" id="c-red" name="red" maxlength="32" data-campo="red" value="<?= $campo('red') ?>"></div>
           <div class="campo"><label for="c-clave">Contraseña</label><input class="entrada" id="c-clave" name="clave" maxlength="63" data-campo="clave" value="<?= $campo('clave') ?>"></div>
           <div class="campo"><label for="c-seg">Seguridad</label>
@@ -122,20 +138,22 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
             </select>
           </div>
         </div>
-        <div data-panel-tipo="vcard" class="fila-campos" hidden>
+        <div data-panel-tipo="vcard" data-panel-modo="estatico" class="fila-campos" hidden>
           <div class="campo"><label for="c-nombre">Nombre</label><input class="entrada" id="c-nombre" name="vc_nombre" maxlength="120" data-campo="nombre" value="<?= $campo('vc_nombre', 'nombre') ?>"></div>
           <div class="campo"><label for="c-empresa">Empresa</label><input class="entrada" id="c-empresa" name="vc_empresa" maxlength="120" data-campo="empresa" value="<?= $campo('vc_empresa', 'empresa') ?>"></div>
           <div class="campo"><label for="c-vtel">Teléfono</label><input class="entrada" id="c-vtel" name="vc_telefono" inputmode="tel" data-campo="telefono" value="<?= $campo('vc_telefono', 'telefono') ?>"></div>
           <div class="campo"><label for="c-vmail">Correo</label><input class="entrada" id="c-vmail" name="vc_email" type="email" data-campo="email" value="<?= $campo('vc_email', 'email') ?>"></div>
         </div>
-        <div data-panel-tipo="email" class="fila-campos" hidden>
+        <div data-panel-tipo="email" data-panel-modo="estatico" class="fila-campos" hidden>
           <div class="campo"><label for="c-mail">Correo de destino</label><input class="entrada" id="c-mail" name="email" type="email" data-campo="email" value="<?= $campo('email') ?>"></div>
           <div class="campo"><label for="c-asunto">Asunto</label><input class="entrada" id="c-asunto" name="asunto" maxlength="200" data-campo="asunto" value="<?= $campo('asunto') ?>"></div>
         </div>
-        <div data-panel-tipo="texto" class="campo" hidden>
+        <div data-panel-tipo="texto" data-panel-modo="estatico" class="campo" hidden>
           <label for="c-texto">Texto</label>
           <textarea class="entrada" id="c-texto" name="texto" data-campo="texto" maxlength="500"><?= $campo('texto') ?></textarea>
         </div>
+
+        <?php qr_pagina_formularios($valoresPagina, $guardadosPagina); ?>
       </fieldset>
     </div>
 

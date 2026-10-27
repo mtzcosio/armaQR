@@ -5,15 +5,15 @@ declare(strict_types=1);
 /**
  * Acciones sobre los QR (POST con CSRF):
  *  - guardar:  crea un QR o edita uno propio. Un estático solo cambia nombre, diseño y logo;
- *              un dinámico además su destino (queda en qr_historial_destinos).
+ *              un dinámico además su contenido: una URL de destino (queda en qr_historial_destinos)
+ *              o su página propia con archivos (includes/qr_paginas.php).
  *  - pausar / reanudar: un dinámico deja de redirigir o vuelve a hacerlo. El dueño, o un
  *              administrador desde Administración › Códigos QR (moderación).
  *  - eliminar: borrado lógico; un dinámico deja de redirigir.
  */
 
 require_once dirname(__DIR__) . '/includes/seguridad.php';
-require_once dirname(__DIR__) . '/includes/qr.php';
-require_once dirname(__DIR__) . '/includes/archivos.php';
+require_once dirname(__DIR__) . '/includes/qr_paginas.php';
 require_once dirname(__DIR__) . '/app/Core/Auth.php';
 
 use App\Core\Auth;
@@ -23,6 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $sesion = Auth::requireUser();
+// Si los archivos rebasan post_max_size, PHP descarta todo el formulario (incluido el CSRF).
+if (!$_POST && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    flash('error', 'Los archivos que subiste pesan demasiado juntos. Súbelos en menos cantidad o más ligeros.');
+    redirigir('app/crear.php');
+}
 if (!csrf_valido($_POST['csrf_token'] ?? null)) {
     flash('error', 'La sesión del formulario expiró. Vuelve a intentarlo.');
     redirigir('app/index.php');
@@ -91,36 +96,40 @@ $tipo = $existente['tipo'] ?? (($_POST['tipo'] ?? '') === 'dinamico' ? 'dinamico
 $tipoContenido = (string) ($_POST['tipo_contenido'] ?? ($existente['tipo_contenido'] ?? 'url'));
 $diseno = qr_diseno($_POST);
 
-// Contenido: un estático guardado no cambia (ya puede estar impreso).
+if (!$existente && ($mensaje = qr_limite_alcanzado((int) $usuario['id'], $plan, $tipo)) !== null) {
+    $error($mensaje);
+}
+
+// Contenido: un estático guardado no cambia (ya puede estar impreso). Un dinámico puede ser una
+// redirección o una página propia (PDF, menú…), cuyos archivos se guardan aquí mismo.
 $contenido = null;
+$camposAnteriores = $existente ? qr_contenido_guardado($existente['contenido'])['campos'] : [];
 if (!$existente || $tipo === 'dinamico') {
-    if (!isset(QR_TIPOS[$tipoContenido])) {
+    if (!isset(($tipo === 'dinamico' ? QR_TIPOS_DINAMICOS : QR_TIPOS)[$tipoContenido])) {
         $error('Elige un tipo de contenido válido.');
     }
-    if ($tipo === 'dinamico' && !in_array($tipoContenido, QR_TIPOS_DINAMICOS, true)) {
-        $error('Un QR dinámico debe llevar a una página: elige Liga o WhatsApp.');
-    }
     try {
-        $contenido = qr_contenido($tipoContenido, $_POST);
+        $contenido = $tipo === 'dinamico'
+            ? qr_pagina_contenido($tipoContenido, $_POST, $_FILES, $existente && $existente['tipo_contenido'] === $tipoContenido ? $camposAnteriores : [])
+            : qr_contenido($tipoContenido, $_POST);
     } catch (QrInvalido $exception) {
         $error($exception->getMessage());
     }
 }
-
-if (!$existente && ($mensaje = qr_limite_alcanzado((int) $usuario['id'], $plan, $tipo)) !== null) {
-    $error($mensaje);
-}
+$archivosNuevos = $contenido ? array_diff(qr_pagina_rutas($contenido['campos']), qr_pagina_rutas($camposAnteriores)) : [];
 
 // Logo: solo en planes que lo incluyen.
 $logo = $existente['logo_ruta'] ?? null;
 $logoNuevo = null;
 $subioLogo = ($_FILES['logo']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
 if ($subioLogo && !$plan['permite_logo']) {
+    array_map('archivo_borrar', $archivosNuevos);
     $error('El logo al centro está disponible desde el plan Pro.');
 }
 try {
     $logoNuevo = $subioLogo ? imagen_guardar_subida($_FILES['logo'], 'qr', 'El logo', QR_LOGO_MAX_BYTES, 2048) : null;
 } catch (RuntimeException $exception) {
+    array_map('archivo_borrar', $archivosNuevos);
     $error($exception->getMessage());
 }
 if ($logoNuevo !== null || !empty($_POST['quitar_logo'])) {
@@ -137,7 +146,7 @@ try {
         if ($tipo === 'dinamico') {
             $sets .= ', tipo_contenido = :tc, contenido = :contenido, url_destino = :destino';
             $params += [':tc' => $tipoContenido, ':contenido' => $jsonContenido, ':destino' => $contenido['texto']];
-            if ($contenido['texto'] !== $existente['url_destino']) {
+            if ($contenido['texto'] !== '' && $contenido['texto'] !== $existente['url_destino']) {
                 $pdo->prepare('INSERT INTO qr_historial_destinos (qr_id, url_anterior, url_nueva, usuario_creacion) VALUES (:qr, :antes, :nueva, :u)')
                     ->execute([':qr' => $id, ':antes' => $existente['url_destino'], ':nueva' => $contenido['texto'], ':u' => $usuario['id']]);
             }
@@ -153,13 +162,17 @@ try {
         $pdo->rollBack();
     }
     imagen_borrar($logoNuevo);
+    array_map('archivo_borrar', $archivosNuevos);
     error_log('Error al guardar QR: ' . $exception->getMessage());
     $error('No se pudo guardar el QR. Inténtalo de nuevo.');
 }
 
-// El logo anterior ya no se usa.
+// El logo y los archivos de la página que ya no se usan.
 if ($existente && $existente['logo_ruta'] !== $logo) {
     imagen_borrar($existente['logo_ruta']);
+}
+if ($contenido) {
+    array_map('archivo_borrar', array_diff(qr_pagina_rutas($camposAnteriores), qr_pagina_rutas($contenido['campos'])));
 }
 
 unset($_SESSION['qr_formulario']);

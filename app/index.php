@@ -15,7 +15,6 @@ $escaneosAnterior = $esPago && $conAnterior ? array_sum(datos_serie_escaneos(30,
 $cambioMes        = datos_variacion($escaneosMes, $escaneosAnterior);
 $retencion        = $plan['dias_retencion_escaneos'];
 $porQr            = datos_escaneos_por_qr($retencion, (int) $usuario['id']); // escaneos de cada QR dentro de la retención del plan
-$tiposContenido   = ['url' => 'Liga', 'whatsapp' => 'WhatsApp', 'wifi' => 'WiFi', 'vcard' => 'Contacto', 'texto' => 'Texto', 'email' => 'Correo'];
 
 /** Formulario POST de una acción sobre un QR (auth/qr.php). */
 $accionQr = fn(string $accion, int $id, string $boton) => '<form method="post" action="' . e(url('auth/qr.php')) . '" class="en-linea">'
@@ -79,7 +78,7 @@ pagina_inicio('Mis QR', 'app', 'qrs');
         <h3><?= e($q['nombre']) ?></h3>
         <div class="meta">
           <span class="tipo-qr <?= $esDinamico ? 'dinamico' : '' ?>"><?= $esDinamico ? 'Dinámico' : 'Estático' ?></span>
-          <span><?= e($tiposContenido[$q['tipo_contenido']] ?? $q['tipo_contenido']) ?></span>
+          <span><?= e(qr_tipo_nombre($q['tipo_contenido'])) ?></span>
           <span>Creado el <?= e(fecha_corta($q['fecha_creacion'])) ?></span>
           <?php if (!$q['activo']): ?><?= insignia_estatus('pausado') ?><?php endif; ?>
         </div>

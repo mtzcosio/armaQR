@@ -5,8 +5,9 @@
  * - Contenido: qr_contenido() valida los campos de cada tipo y arma el texto del QR
  *   exactamente igual que construirContenido() en assets/js/app.js (la vista previa).
  * - Estático: el texto va dentro del código; no se puede cambiar después.
- * - Dinámico: el código lleva a https://{dominio}/r/{codigo_corto} y r.php redirige a
- *   url_destino, que se puede cambiar sin reimprimir. Solo tipos que abren una página.
+ * - Dinámico: el código lleva a https://{dominio}/r/{codigo_corto}. r.php redirige a
+ *   url_destino o, en los tipos de página (PDF, menú, cupón…), muestra la página del QR
+ *   (includes/qr_paginas.php). Todo se puede cambiar sin reimprimir.
  * - Límites del plan: QR estáticos creados en el mes y QR dinámicos activos.
  * - Escaneos: qr_registrar_escaneo() guarda dispositivo, sistema y navegador; la IP solo
  *   como hash con sal (para contar personas distintas sin guardar la IP).
@@ -16,8 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/datos.php';
 
-const QR_TIPOS = ['url' => 'Liga', 'whatsapp' => 'WhatsApp', 'wifi' => 'WiFi', 'vcard' => 'Contacto', 'email' => 'Correo', 'texto' => 'Texto'];
-const QR_TIPOS_DINAMICOS = ['url', 'whatsapp'];        // abren una página: se pueden redirigir
+// Tipos de contenido: QR_TIPOS (estáticos) y QR_TIPOS_DINAMICOS en includes/qr_tipos.php.
 const QR_ALFABETO = 'abcdefghjkmnpqrstuvwxyz23456789'; // sin 0/o, 1/l/i: no se confunden al leerlos
 const QR_LARGO_CODIGO = 6;                              // 31^6 ≈ 887 millones de códigos
 const QR_LOGO_MAX_BYTES = 1048576;
@@ -300,8 +300,8 @@ function qr_del_usuario(int $qrId, int $usuarioId): ?array
 }
 
 /**
- * QR dinámico por su código corto, con lo necesario para decidir si redirige:
- * estatus de la cuenta del dueño y si su plan incluye QR dinámicos.
+ * QR dinámico por su código corto, con lo necesario para decidir si redirige (estatus de la
+ * cuenta del dueño y si su plan incluye QR dinámicos) y para mostrar su página.
  */
 function qr_por_codigo(string $codigo): ?array
 {
@@ -309,8 +309,8 @@ function qr_por_codigo(string $codigo): ?array
         return null;
     }
     return datos_consulta(
-        "SELECT q.id, q.url_destino, q.activo, q.eliminado, u.estatus AS estatus_dueno, u.eliminado AS dueno_eliminado,
-                p.id AS plan_id, p.max_qr_dinamicos
+        "SELECT q.id, q.usuario_id, q.codigo_corto, q.tipo_contenido, q.contenido, q.diseno, q.url_destino, q.activo, q.eliminado,
+                u.estatus AS estatus_dueno, u.eliminado AS dueno_eliminado, p.id AS plan_id, p.max_qr_dinamicos, p.marca_agua
          FROM qr_codigos q
          JOIN usuarios u ON u.id = q.usuario_id
          LEFT JOIN suscripciones s ON s.usuario_vigente = u.id AND " . SQL_SUSCRIPCION_AL_DIA . "
@@ -332,7 +332,9 @@ function qr_motivo_sin_redireccion(?array $qr): ?string
     }
     // Sin suscripción vigente cuenta como plan gratis; max_qr_dinamicos NULL en un plan = ilimitados.
     $planSinDinamicos = $qr['plan_id'] === null || ($qr['max_qr_dinamicos'] !== null && (int) $qr['max_qr_dinamicos'] === 0);
-    if ((int) $qr['activo'] !== 1 || $qr['estatus_dueno'] !== 'activo' || $planSinDinamicos || (string) $qr['url_destino'] === '') {
+    // Los tipos de página no tienen URL de destino: r.php muestra su página.
+    $sinDestino = qr_tipo_usa_url((string) ($qr['tipo_contenido'] ?? 'url')) && (string) $qr['url_destino'] === '';
+    if ((int) $qr['activo'] !== 1 || $qr['estatus_dueno'] !== 'activo' || $planSinDinamicos || $sinDestino) {
         return 'pausado';
     }
     return null;

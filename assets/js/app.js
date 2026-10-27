@@ -362,36 +362,43 @@
       }
     }
 
-    // Un dinámico redirige a una página: solo Liga y WhatsApp.
+    // Cada tipo de contenido dice en qué modos existe (data-modos): Texto solo es estático;
+    // PDF, Menú, Cupón… solo dinámicos. Si el elegido no existe en el modo nuevo, pasa a Sitio web.
+    const modo = () => esDinamico() ? 'dinamico' : 'estatico';
     function ajustarTiposPorModo() {
-      const soloPagina = esDinamico();
-      $$('[data-solo-estatico]', form).forEach(l => {
+      $$('[data-modos]', form).forEach(l => {
+        const disponible = l.dataset.modos.split(' ').includes(modo());
         const r = l.querySelector('input');
-        r.disabled = soloPagina || r.closest('fieldset:disabled') !== null;
-        l.classList.toggle('no-disponible', soloPagina);
+        l.hidden = !disponible;
+        r.disabled = !disponible || r.closest('fieldset:disabled') !== null;
       });
-      const nota = $('[data-nota-dinamico]', form);
-      if (nota) nota.hidden = !soloPagina;
       const actual = form.querySelector('[name="tipo_contenido"]:checked');
-      if (soloPagina && actual && actual.closest('[data-solo-estatico]')) {
+      if (actual && actual.closest('[data-modos]') && actual.closest('[data-modos]').hidden) {
         const url = form.querySelector('[name="tipo_contenido"][value="url"]');
         url.checked = true;
         return 'url';
       }
       return null;
     }
-    $$('[name="tipo"]', form).forEach(r => r.addEventListener('change', () => { const t = ajustarTiposPorModo(); if (t) mostrarTipo(t); }));
+    $$('[name="tipo"]', form).forEach(r => r.addEventListener('change', () => mostrarTipo(ajustarTiposPorModo() || tipo)));
 
+    // Solo el panel del tipo (y modo) elegido queda visible; los <fieldset> ocultos se deshabilitan
+    // para que sus campos y archivos no se envíen.
     function mostrarTipo(nuevo) {
       tipo = nuevo;
-      $$('[data-panel-tipo]', form).forEach(p => { p.hidden = p.dataset.panelTipo !== tipo; });
+      $$('[data-panel-tipo]', form).forEach(p => {
+        const visible = p.dataset.panelTipo === tipo && (!p.dataset.panelModo || p.dataset.panelModo === modo());
+        p.hidden = !visible;
+        if (p.tagName === 'FIELDSET') p.disabled = !visible;
+      });
       $$('[data-tipo-boton]', form).forEach(b => b.setAttribute('aria-selected', String(b.dataset.tipoBoton === tipo)));
       actualizar();
     }
     $$('[data-tipo-boton]', form).forEach(b => b.addEventListener('click', () => mostrarTipo(b.dataset.tipoBoton)));
     $$('[name="tipo_contenido"]', form).forEach(r => r.addEventListener('change', () => mostrarTipo(r.value)));
 
-    form.addEventListener('input', debounce(() => actualizar(), 250));
+    // Los campos de las páginas no cambian el QR (lleva a la liga corta): no hace falta redibujarlo.
+    form.addEventListener('input', debounce(ev => { if (!ev.target.closest('[data-panel-pagina]')) actualizar(); }, 250));
     form.addEventListener('change', () => actualizar(false));
     form.addEventListener('submit', ev => {
       if (form.dataset.simular !== undefined) {
@@ -476,6 +483,40 @@
 
     tipo = ajustarTiposPorModo() || tipo;
     mostrarTipo(tipo);
+  });
+
+  /* --- Listas repetibles (enlaces, secciones y platillos del menú) --- */
+  // Cada [data-lista] tiene su <template data-lista-plantilla> con un marcador (data-token) que se
+  // cambia por un índice nuevo. Las listas anidadas usan otro marcador, así no se reemplaza el suyo.
+  let indiceLista = 0;
+  document.addEventListener('click', ev => {
+    const agregar = ev.target.closest('[data-lista-agregar]');
+    if (agregar) {
+      const lista = agregar.closest('[data-lista]');
+      const items = $(':scope > [data-lista-items]', lista);
+      if (items.children.length >= parseInt(lista.dataset.max || '50', 10)) {
+        notificar('Llegaste al máximo de ' + lista.dataset.max);
+        return;
+      }
+      const plantilla = $(':scope > template[data-lista-plantilla]', lista);
+      const html = plantilla.innerHTML.split(lista.dataset.token).join('n' + (++indiceLista));
+      items.insertAdjacentHTML('beforeend', html);
+      const nuevo = items.lastElementChild;
+      const primero = nuevo && nuevo.querySelector('input, textarea, select');
+      if (primero) primero.focus();
+      return;
+    }
+    const quitar = ev.target.closest('[data-lista-quitar]');
+    if (quitar) {
+      const item = quitar.closest('[data-lista-item]');
+      const items = item.parentElement;
+      if (items.children.length <= 1) {
+        // Siempre queda uno: se vacía en lugar de quitarlo.
+        $$('input, textarea', item).forEach(c => { c.value = ''; });
+        return;
+      }
+      item.remove();
+    }
   });
 
   /* --- Descarga directa desde "Mis QR" (con el diseño y logo guardados) --- */

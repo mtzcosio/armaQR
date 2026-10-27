@@ -169,10 +169,10 @@ CREATE TABLE qr_codigos (
   usuario_id               INT UNSIGNED NOT NULL,
   nombre                   VARCHAR(120) NOT NULL,
   tipo                     ENUM('estatico','dinamico') NOT NULL,
-  tipo_contenido           ENUM('url','texto','wifi','vcard','email','telefono','sms','whatsapp') NOT NULL,
+  tipo_contenido           VARCHAR(30)  NOT NULL,            -- url, wifi, pdf, menu… (catálogo en includes/qr_tipos.php)
   contenido                JSON         NOT NULL,            -- datos estructurados según tipo_contenido
   codigo_corto             VARCHAR(12)  NULL,                -- solo dinámicos, ej. 'a8Kz3P'
-  url_destino              VARCHAR(2048) NULL,               -- solo dinámicos
+  url_destino              VARCHAR(2048) NULL,               -- solo dinámicos; '' en los de tipo página
   diseno                   JSON         NULL,                -- colores, forma de módulos, ojos, margen
   logo_ruta                VARCHAR(255) NULL,
   activo                   TINYINT(1)   NOT NULL DEFAULT 1,  -- un dinámico pausado no redirige

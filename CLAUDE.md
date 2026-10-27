@@ -7,7 +7,11 @@ Guía del proyecto para Claude Code. Léela antes de analizar el código desde c
 **Arma-QR**: SaaS mexicano (MXN) para generar códigos QR, tipo getqr.com. Registro obligatorio, modelo freemium.
 
 - **QR estático** (gratis): el contenido va dentro del código; no se edita ni se mide.
-- **QR dinámico** (de pago): el código apunta a `https://{dominio}/r/{codigo_corto}`; [r.php](r.php) registra el escaneo y redirige a `url_destino`, que se puede cambiar sin reimprimir.
+- **QR dinámico** (de pago): el código apunta a `https://{dominio}/r/{codigo_corto}`; [r.php](r.php) registra el escaneo y redirige a `url_destino` o, en los tipos de página, muestra una página propia. Todo se puede cambiar sin reimprimir.
+- **18 tipos dinámicos** (catálogo en [includes/qr_tipos.php](includes/qr_tipos.php)):
+  - Redirigen: sitio web, WhatsApp, Facebook e Instagram. Aplicaciones manda a la tienda según el celular.
+  - Muestran página propia: PDF, lista de enlaces, vCard, menú, cupón, Wi-Fi, evento, empresa, video, imágenes, redes sociales, MP3 y e-mail.
+  - Texto solo existe como estático.
 - Planes: Gratis / Pro / Negocio. Límites y funciones viven en la tabla `planes` (`NULL` = ilimitado), no en el código.
 
 Especificación de negocio y BD: [docs/01-qr-saas-modelo-y-base-de-datos.md](docs/01-qr-saas-modelo-y-base-de-datos.md). Pantallas: [docs/02-qr-saas-pantallas-front.md](docs/02-qr-saas-pantallas-front.md) (nota: describe la etapa con datos mock, ya superada).
@@ -32,6 +36,7 @@ php database/migrate_documentos_legales.php
 php database/migrate_notas_usuario.php
 php database/migrate_pagos.php          # columna usuarios.id_cliente_conekta
 php database/migrate_planes.php         # quita planes.id_externo_mensual/anual (sin uso)
+php database/migrate_paginas_qr.php     # qr_codigos.tipo_contenido de ENUM a VARCHAR(30) (páginas de QR)
 php database/vencer_suscripciones.php   # cron diario: cierra periodos vencidos y regresa a Gratis
 php database/create_admin.php "Nombre" correo@x.com "contraseña"   # crea un admin (o vía ADMIN_NAME/ADMIN_EMAIL/ADMIN_PASSWORD)
 ```
@@ -68,7 +73,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 | [webhooks/](webhooks/) | `stripe.php` y `conekta.php`: avisos de las pasarelas (sin sesión ni CSRF; Stripe valida firma, Conekta se reconsulta a la API) |
 | [database/](database/) | Esquema, migraciones, `Database.php`, scripts CLI |
 | [tests/](tests/) | Pruebas propias (sin PHPUnit), runner `run.php` |
-| `assets/uploads/` | Logos de QR (`qr/`) y de marca (`brand/`), nombres hash |
+| `assets/uploads/` | Logos de QR (`qr/`), de marca (`brand/`) y archivos de las páginas de QR (`paginas/`: PDF, audio, imágenes), nombres hash |
 
 ### Módulos en `includes/` (prefijo = módulo)
 
@@ -76,12 +81,21 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 - `seguridad.php`: inicia la sesión, `redirigir()`, `csrf_token()/csrf_campo()/csrf_valido()`, `flash()/flash_tomar()`, `limite_*()` (bloqueo por intentos fallidos, guardado en archivos).
 - `datos.php`: consultas `datos_*()` (planes, usuarios, QR, pagos, series de escaneos, resumen admin), `configuracion_activa()`, `nombre_portal()`, `dominio_portal()`.
 - `qr.php`: `qr_contenido()` (debe coincidir con `construirContenido()` de app.js), límites de plan (`qr_limite_alcanzado`, `qr_ajustar_al_plan`: al bajar de plan pausa los dinámicos más nuevos que excedan el límite), `qr_insertar`, `qr_por_codigo`, `qr_registrar_escaneo` (IP como `sha256(ip + sal)`, la sal se guarda en `configuracion.escaneos_sal`), detección de robots y agente.
+- `qr_tipos.php`: catálogo `QR_TIPOS` (estáticos) y `QR_TIPOS_DINAMICOS` (nombre, descripción, modo `redireccion`|`pagina`), `qr_tipo_usa_url()`, `qr_tipo_nombre()`. Lo carga `datos.php`.
+- `qr_paginas.php`: páginas de los dinámicos.
+  - `qr_pagina_contenido()` valida los campos `pg[tipo][...]` y guarda los archivos en `assets/uploads/paginas/`. Devuelve `['campos', 'texto']`; `texto` es `''` en los tipos de página, que guardan `url_destino = ''`.
+  - Los archivos solo viven en las claves `QR_PAGINA_CAMPOS_ARCHIVO` (`qr_pagina_rutas()`). Al editar se borran los que dejan de usarse.
+  - También genera los `.vcf` y `.ics` y elige la tienda para Aplicaciones.
+- `qr_paginas_form.php`: un `<fieldset data-panel-tipo data-panel-modo="dinamico">` por tipo en `app/crear.php`. El JS deshabilita los ocultos para que no se envíen. Las listas repetibles usan `<template data-lista-plantilla>` con los marcadores `__i__` y `__j__`.
+- `qr_pagina_vista.php`: `qr_pagina_mostrar()`, la página pública que muestra `r.php`. El color del QR es el acento.
+  - `r.php?descargar=vcf|ics` sirve los archivos y no cuenta como escaneo.
+  - `?vista_previa=1` (dueño o admin) muestra la página sin contar escaneo, aunque el QR esté pausado.
 - `qr_csv.php`: lectura/validación/escritura de CSV para la creación masiva.
 - `correo.php` + `smtp.php`: plantillas de correo desde BD con variables `{{var}}`, cliente SMTP propio (sin PHPMailer). Ver [docs/plantillas-de-correo.md](docs/plantillas-de-correo.md).
 - `tokens.php`, `verificacion.php`, `recuperacion.php`: tokens de un solo uso (se guarda solo el hash) para verificar el correo y recuperar la contraseña.
 - `legales.php`, `pagina_legal.php`: aviso de privacidad y términos editables, con versiones y borradores, y HTML sanitizado.
 - `tema.php`: colores claro/oscuro configurables desde admin (variables CSS).
-- `archivos.php`: subida y validación de imágenes.
+- `archivos.php`: subida y validación de imágenes, PDF y audio por su tipo real (`finfo`). `archivo_borrar()` solo borra nombres hash dentro de `assets/uploads/`.
 - `pagos.php`: Stripe (suscripción con cobro automático, prorrateo, portal, reembolsos) y Conekta (pago único por periodo con tarjeta/OXXO/SPEI). Webhooks idempotentes vía `eventos_pasarela`; el plan solo cambia desde webhooks. cURL directo, sin SDK. Detalle: [docs/04-pagos-stripe-conekta.md](docs/04-pagos-stripe-conekta.md).
 
 Autenticación: `App\Core\Auth` ([app/Core/Auth.php](app/Core/Auth.php)): `requireUser()`, `requireAdmin()`, `isAdminRole()`. La sesión guarda `$_SESSION['usuario_id']`; solo entran usuarios con `estatus = 'activo'`.
@@ -96,7 +110,7 @@ Autenticación: `App\Core\Auth` ([app/Core/Auth.php](app/Core/Auth.php)): `requi
 
 ## Estado actual
 
-**Funciona con BD real:** pagos con Stripe y Conekta (checkout, webhooks, cambio de plan, cancelación, portal, reembolsos totales), registro/login con límite de intentos, verificación de correo, recuperación de contraseña, crear/editar/pausar/eliminar QR estáticos y dinámicos, límites por plan (incluida la retención de estadísticas por plan), redirección y registro de escaneos, estadísticas, creación masiva por CSV, panel admin (usuarios, notas, moderación de QR, planes con precios, límites y funciones, plantillas de correo, documentos legales, configuración de identidad, SMTP, tema y pagos), envío de correo por SMTP.
+**Funciona con BD real:** pagos con Stripe y Conekta (checkout, webhooks, cambio de plan, cancelación, portal, reembolsos totales), registro/login con límite de intentos, verificación de correo, recuperación de contraseña, crear/editar/pausar/eliminar QR estáticos y dinámicos (incluidas las páginas propias de los 18 tipos), límites por plan (incluida la retención de estadísticas por plan), redirección y registro de escaneos, estadísticas, creación masiva por CSV, panel admin (usuarios, notas, moderación de QR, planes con precios, límites y funciones, plantillas de correo, documentos legales, configuración de identidad, SMTP, tema y pagos), envío de correo por SMTP.
 
 **Pendiente o simulado:**
 - **Pagos:** facturación CFDI (datos fiscales y "Descargar factura" en `app/plan.php`) sigue simulada (`data-simular*`). Las claves de pasarela se guardan sin cifrar en `configuracion`.

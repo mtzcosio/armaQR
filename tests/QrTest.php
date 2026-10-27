@@ -45,7 +45,9 @@ $prueba('email inválido', $falla('email', ['email' => 'no-es-correo']) !== null
 $prueba('texto vacío', $falla('texto', ['texto' => '']) !== null);
 $prueba('tipo desconocido', $falla('sms', []) !== null);
 $prueba('texto se recorta a 500', mb_strlen($texto('texto', ['texto' => str_repeat('é', 600)])) === 500);
-$prueba('Los dinámicos solo admiten tipos que abren una página', QR_TIPOS_DINAMICOS === ['url', 'whatsapp']);
+$prueba('Hay 18 tipos dinámicos', count(QR_TIPOS_DINAMICOS) === 18);
+$prueba('Texto solo es estático', isset(QR_TIPOS['texto']) && !isset(QR_TIPOS_DINAMICOS['texto']));
+$prueba('Solo URL, WhatsApp, Facebook e Instagram redirigen siempre', array_values(array_filter(array_keys(QR_TIPOS_DINAMICOS), 'qr_tipo_usa_url')) === ['url', 'facebook', 'instagram', 'whatsapp']);
 
 // --- Diseño ---
 $prueba('Diseño válido se conserva (en minúsculas)', qr_diseno(['color' => '#E4007C', 'fondo' => '#FFFFFF']) === ['color' => '#e4007c', 'fondo' => '#ffffff']);
@@ -81,6 +83,9 @@ $prueba('Dueño suspendido', qr_motivo_sin_redireccion(['estatus_dueno' => 'susp
 $prueba('Dueño bajó a gratis', qr_motivo_sin_redireccion(['max_qr_dinamicos' => 0] + $base) === 'pausado');
 $prueba('Dueño sin suscripción', qr_motivo_sin_redireccion(['plan_id' => null, 'max_qr_dinamicos' => null] + $base) === 'pausado');
 $prueba('Código con formato inválido no consulta la BD', qr_por_codigo("x' OR 1=1") === null);
+$prueba('Página sin URL de destino: se muestra', qr_motivo_sin_redireccion(['tipo_contenido' => 'menu', 'url_destino' => ''] + $base) === null);
+$prueba('Redirección sin URL de destino: no disponible', qr_motivo_sin_redireccion(['tipo_contenido' => 'url', 'url_destino' => ''] + $base) === 'pausado');
+$prueba('Página pausada: no disponible', qr_motivo_sin_redireccion(['tipo_contenido' => 'pdf', 'url_destino' => '', 'activo' => 0] + $base) === 'pausado');
 
 if ($fallas) {
     fwrite(STDERR, "Fallaron:\n  - " . implode("\n  - ", $fallas) . "\n");
