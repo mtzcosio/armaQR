@@ -216,6 +216,41 @@ function qr_limite_alcanzado(int $usuarioId, array $plan, string $tipo): ?string
     return null;
 }
 
+/** Ids (de más antiguo a más nuevo) que quedan fuera de un límite: los más nuevos. NULL = ilimitado. */
+function qr_sobrantes(array $ids, ?int $limite): array
+{
+    return $limite === null ? [] : array_values(array_slice($ids, $limite));
+}
+
+/**
+ * Pausa los QR dinámicos activos que excedan el límite del plan vigente (p. ej. al bajar de
+ * Negocio a Pro) y conserva los más antiguos. Con un plan sin dinámicos (Gratis o vencido) no
+ * pausa nada: r.php ya no redirige ninguno y, si vuelve a pagar, siguen activos. Devuelve cuántos pausó.
+ */
+function qr_ajustar_al_plan(int $usuarioId): int
+{
+    $plan = datos_consulta(
+        'SELECT p.max_qr_dinamicos FROM suscripciones s JOIN planes p ON p.id = s.plan_id
+         WHERE s.usuario_vigente = :u AND ' . SQL_SUSCRIPCION_AL_DIA,
+        [':u' => $usuarioId]
+    )[0] ?? null;
+    $limite = $plan === null ? 0 : datos_entero_o_nulo($plan['max_qr_dinamicos']);
+    if ($limite === 0) {
+        return 0;
+    }
+    $ids = array_map('intval', array_column(datos_consulta(
+        "SELECT id FROM qr_codigos WHERE usuario_id = :u AND tipo = 'dinamico' AND activo = 1 AND eliminado = 0
+         ORDER BY fecha_creacion, id",
+        [':u' => $usuarioId]
+    ), 'id'));
+    $sobran = qr_sobrantes($ids, $limite);
+    if ($sobran) {
+        datos_pdo()->prepare('UPDATE qr_codigos SET activo = 0 WHERE id IN (' . implode(',', array_fill(0, count($sobran), '?')) . ')')
+            ->execute($sobran);
+    }
+    return count($sobran);
+}
+
 /** Suma al contador mensual (tabla uso_mensual, la usa la vista vw_plan_usuario). */
 function qr_registrar_uso(int $usuarioId, string $tipo, int $cantidad = 1): void
 {

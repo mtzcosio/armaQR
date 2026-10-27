@@ -16,6 +16,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/datos.php';
+require_once __DIR__ . '/qr.php';
 
 const STRIPE_API = 'https://api.stripe.com';
 const STRIPE_VERSION = '2024-06-20';            // fija la forma de las respuestas de la API
@@ -181,6 +182,7 @@ function pagos_terminar_suscripcion(int $suscripcionId, string $estatus): void
  * Crea o actualiza la suscripción (pasarela, id_externo) y la deja como vigente del usuario.
  * $d: usuario_id, plan (código), periodicidad, pasarela, id_externo, estatus, inicio y fin
  *     (timestamps), y opcionales prueba_fin y cancelar_al_final. Devuelve el id de la suscripción.
+ * Si el plan nuevo admite menos QR dinámicos, pausa los que sobren (qr_ajustar_al_plan).
  */
 function pagos_guardar_suscripcion(array $d): int
 {
@@ -189,7 +191,7 @@ function pagos_guardar_suscripcion(array $d): int
         throw new PagoError('El plan "' . $d['plan'] . '" no existe o no es de pago.');
     }
 
-    return pagos_transaccion(function (PDO $pdo) use ($d, $plan): int {
+    $id = pagos_transaccion(function (PDO $pdo) use ($d, $plan): int {
         $stmt = $pdo->prepare('SELECT id, usuario_vigente FROM suscripciones WHERE pasarela = :p AND id_externo = :x FOR UPDATE');
         $stmt->execute([':p' => $d['pasarela'], ':x' => $d['id_externo']]);
         $existente = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
@@ -228,6 +230,8 @@ function pagos_guardar_suscripcion(array $d): int
         )->execute($valores + [':u' => $d['usuario_id'], ':pasarela' => $d['pasarela'], ':externo' => $d['id_externo']]);
         return (int) $pdo->lastInsertId();
     });
+    qr_ajustar_al_plan((int) $d['usuario_id']);
+    return $id;
 }
 
 /**

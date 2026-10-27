@@ -18,6 +18,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/seguridad.php';
 require_once dirname(__DIR__) . '/includes/recuperacion.php';
 require_once dirname(__DIR__) . '/includes/verificacion.php';
+require_once dirname(__DIR__) . '/includes/qr.php';
 require_once dirname(__DIR__) . '/app/Core/Auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -104,6 +105,10 @@ switch ($accion) {
             )->execute([':u' => $usuario['id'], ':plan' => $plan['id'], ':per' => $periodicidad, ':admin' => $admin['id']]);
         }
         $aviso = $vigente && $vigente['pasarela'] ? ' Ojo: no cambia lo que cobra la pasarela; ajústalo también allá.' : '';
+        $pausados = qr_ajustar_al_plan((int) $usuario['id']);
+        if ($pausados > 0) {
+            $aviso .= ' Se pausaron sus ' . numero($pausados) . ' QR dinámicos más nuevos porque excedían el límite del plan.';
+        }
         flash('ok', "Asignaste el plan {$plan['nombre']} a {$usuario['nombre']}. No genera cobro.{$aviso}");
         redirigir($volver);
 

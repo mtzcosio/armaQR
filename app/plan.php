@@ -15,8 +15,7 @@ $qrs     = datos_qrs_de($usuario['id']);
 $pagos   = datos_pagos($usuario['id']);
 
 $dinamicos = count(array_filter($qrs, fn($q) => $q['tipo'] === 'dinamico' && $q['activo']));
-$estaticos = count(array_filter($qrs, fn($q) => $q['tipo'] === 'estatico' && str_starts_with($q['fecha_creacion'], date('Y-m'))));
-$clavesApi = datos_claves_api_activas($usuario['id']);
+$estaticos = qr_estaticos_del_mes((int) $usuario['id']); // el mismo conteo que aplica el límite (incluye eliminados)
 $finPeriodo = $usuario['periodo_fin'] ?? null;
 $tarjeta = null;
 foreach ($pagos as $p) {
@@ -115,7 +114,6 @@ pagina_inicio('Plan y pagos', 'app', 'plan');
     <div class="caja-cuerpo uso-plan">
       <?= medidor_uso('QR dinámicos activos', $dinamicos, $plan['max_qr_dinamicos']) ?>
       <?= medidor_uso('QR estáticos este mes', $estaticos, $plan['max_qr_estaticos_mes']) ?>
-      <?= medidor_uso('Claves API', $clavesApi, $plan['max_claves_api']) ?>
     </div>
   </section>
 

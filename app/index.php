@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/qr.php';
 
 $usuario = datos_usuario_actual();
 $plan    = $usuario['plan_datos'];
@@ -7,9 +8,10 @@ $qrs     = datos_qrs_de($usuario['id']);
 $esPago  = $plan['permite_analitica'];
 
 $dinamicosActivos = count(array_filter($qrs, fn($q) => $q['tipo'] === 'dinamico' && $q['activo']));
-$estaticosMes     = count(array_filter($qrs, fn($q) => $q['tipo'] === 'estatico' && str_starts_with($q['fecha_creacion'], date('Y-m'))));
-$escaneosMes      = array_sum(datos_serie_escaneos(30, $usuario['id']));
-$escaneosAnterior = array_sum(datos_serie_escaneos(30, $usuario['id'], null, 30));
+$estaticosMes     = qr_estaticos_del_mes((int) $usuario['id']); // el mismo conteo que aplica el límite (incluye eliminados)
+$conAnterior      = datos_periodo_visible($plan['dias_retencion_escaneos'], 60);
+$escaneosMes      = $esPago ? array_sum(datos_serie_escaneos(30, $usuario['id'])) : 0;
+$escaneosAnterior = $esPago && $conAnterior ? array_sum(datos_serie_escaneos(30, $usuario['id'], null, 30)) : 0;
 $cambioMes        = datos_variacion($escaneosMes, $escaneosAnterior);
 $tiposContenido   = ['url' => 'Liga', 'whatsapp' => 'WhatsApp', 'wifi' => 'WiFi', 'vcard' => 'Contacto', 'texto' => 'Texto', 'email' => 'Correo'];
 
@@ -42,7 +44,7 @@ pagina_inicio('Mis QR', 'app', 'qrs');
 <section class="cifras" aria-label="Resumen">
   <div class="cifra"><span>Códigos guardados</span><strong><?= numero(count($qrs)) ?></strong><small><?= numero(count($qrs) - count(array_filter($qrs, fn($q) => $q['activo']))) ?> pausados</small></div>
   <?php if ($esPago): ?>
-    <div class="cifra destaca"><span>Escaneos en 30 días</span><strong><?= numero($escaneosMes) ?></strong><?php if ($escaneosAnterior > 0): ?><small class="<?= $cambioMes >= 0 ? 'sube' : 'baja' ?>"><?= ($cambioMes >= 0 ? '+' : '') . $cambioMes ?>% vs. 30 días anteriores</small><?php else: ?><small>Sin escaneos en los 30 días anteriores</small><?php endif; ?></div>
+    <div class="cifra destaca"><span>Escaneos en 30 días</span><strong><?= numero($escaneosMes) ?></strong><?php if (!$conAnterior): ?><small>Últimos 30 días</small><?php elseif ($escaneosAnterior > 0): ?><small class="<?= $cambioMes >= 0 ? 'sube' : 'baja' ?>"><?= ($cambioMes >= 0 ? '+' : '') . $cambioMes ?>% vs. 30 días anteriores</small><?php else: ?><small>Sin escaneos en los 30 días anteriores</small><?php endif; ?></div>
     <div class="cifra"><span>QR dinámicos activos</span><strong><?= $dinamicosActivos ?></strong><small>de <?= $plan['max_qr_dinamicos'] === null ? 'ilimitados' : $plan['max_qr_dinamicos'] ?> en tu plan</small></div>
   <?php else: ?>
     <div class="cifra"><span>QR estáticos este mes</span><strong><?= $estaticosMes ?></strong><small>de <?= $plan['max_qr_estaticos_mes'] === null ? 'ilimitados' : $plan['max_qr_estaticos_mes'] ?> en tu plan</small></div>

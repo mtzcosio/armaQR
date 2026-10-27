@@ -32,9 +32,6 @@ CREATE TABLE planes (
   permite_analitica        TINYINT(1)   NOT NULL DEFAULT 0,
   permite_masivo           TINYINT(1)   NOT NULL DEFAULT 0,
   marca_agua               TINYINT(1)   NOT NULL DEFAULT 1,
-  -- IDs del precio en la pasarela (Stripe price_xxx, Mercado Pago preapproval_plan, etc.)
-  id_externo_mensual       VARCHAR(100) NULL,
-  id_externo_anual         VARCHAR(100) NULL,
   es_publico               TINYINT(1)   NOT NULL DEFAULT 1,  -- visible en la página de precios
   orden                    SMALLINT     NOT NULL DEFAULT 0,
   -- Auditoría

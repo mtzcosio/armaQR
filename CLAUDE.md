@@ -31,6 +31,7 @@ php database/migrate_plantillas_correo.php
 php database/migrate_documentos_legales.php
 php database/migrate_notas_usuario.php
 php database/migrate_pagos.php          # columna usuarios.id_cliente_conekta
+php database/migrate_planes.php         # quita planes.id_externo_mensual/anual (sin uso)
 php database/vencer_suscripciones.php   # cron diario: cierra periodos vencidos y regresa a Gratis
 php database/create_admin.php "Nombre" correo@x.com "contraseña"   # crea un admin (o vía ADMIN_NAME/ADMIN_EMAIL/ADMIN_PASSWORD)
 ```
@@ -62,7 +63,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 | raíz | Páginas públicas: `index.php` (landing + generador), `login`, `registro`, `recuperar`, `restablecer`, `verificar`, `privacidad`, `terminos`, `r.php` |
 | [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar), `estadisticas`, `csv` (masivo), `plan` |
 | [admin/](admin/) | Panel admin: `index`, `usuarios`/`usuario`, `qrs` (moderación), `planes`, `pagos`, `correos`/`correo`/`correo-variables`/`correo-ver`, `legales`/`legal`, `configuracion` |
-| [auth/](auth/) | **Endpoints POST** (acciones): login, registro, logout, qr, qr-csv, pago, usuarios, correos, legales, configuracion, recuperar, restablecer, verificar. Validan método, CSRF y permisos, luego `flash()` + `redirigir()` (PRG) |
+| [auth/](auth/) | **Endpoints POST** (acciones): login, registro, logout, qr, qr-csv, pago, planes, usuarios, correos, legales, configuracion, recuperar, restablecer, verificar. Validan método, CSRF y permisos, luego `flash()` + `redirigir()` (PRG) |
 | [includes/](includes/) | Librerías de funciones con prefijo por módulo (ver abajo) |
 | [webhooks/](webhooks/) | `stripe.php` y `conekta.php`: avisos de las pasarelas (sin sesión ni CSRF; Stripe valida firma, Conekta se reconsulta a la API) |
 | [database/](database/) | Esquema, migraciones, `Database.php`, scripts CLI |
@@ -74,7 +75,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 - `layout.php`: `pagina_inicio()`/`panel_inicio()`/`pagina_fin()`, `icono()`, `aviso()`, `insignia_*()`, `url_app()`, `asset()`. Carga config, seguridad, datos y tema.
 - `seguridad.php`: inicia la sesión, `redirigir()`, `csrf_token()/csrf_campo()/csrf_valido()`, `flash()/flash_tomar()`, `limite_*()` (bloqueo por intentos fallidos, guardado en archivos).
 - `datos.php`: consultas `datos_*()` (planes, usuarios, QR, pagos, series de escaneos, resumen admin), `configuracion_activa()`, `nombre_portal()`, `dominio_portal()`.
-- `qr.php`: `qr_contenido()` (debe coincidir con `construirContenido()` de app.js), límites de plan (`qr_limite_alcanzado`), `qr_insertar`, `qr_por_codigo`, `qr_registrar_escaneo` (IP como `sha256(ip + sal)`, la sal se guarda en `configuracion.escaneos_sal`), detección de robots y agente.
+- `qr.php`: `qr_contenido()` (debe coincidir con `construirContenido()` de app.js), límites de plan (`qr_limite_alcanzado`, `qr_ajustar_al_plan`: al bajar de plan pausa los dinámicos más nuevos que excedan el límite), `qr_insertar`, `qr_por_codigo`, `qr_registrar_escaneo` (IP como `sha256(ip + sal)`, la sal se guarda en `configuracion.escaneos_sal`), detección de robots y agente.
 - `qr_csv.php`: lectura/validación/escritura de CSV para la creación masiva.
 - `correo.php` + `smtp.php`: plantillas de correo desde BD con variables `{{var}}`, cliente SMTP propio (sin PHPMailer). Ver [docs/plantillas-de-correo.md](docs/plantillas-de-correo.md).
 - `tokens.php`, `verificacion.php`, `recuperacion.php`: tokens de un solo uso (se guarda solo el hash) para verificar el correo y recuperar la contraseña.
@@ -95,11 +96,11 @@ Autenticación: `App\Core\Auth` ([app/Core/Auth.php](app/Core/Auth.php)): `requi
 
 ## Estado actual
 
-**Funciona con BD real:** pagos con Stripe y Conekta (checkout, webhooks, cambio de plan, cancelación, portal, reembolsos totales), registro/login con límite de intentos, verificación de correo, recuperación de contraseña, crear/editar/pausar/eliminar QR estáticos y dinámicos, límites por plan, redirección y registro de escaneos, estadísticas, creación masiva por CSV, panel admin (usuarios, notas, moderación de QR, plantillas de correo, documentos legales, configuración de identidad, SMTP, tema y pagos), envío de correo por SMTP.
+**Funciona con BD real:** pagos con Stripe y Conekta (checkout, webhooks, cambio de plan, cancelación, portal, reembolsos totales), registro/login con límite de intentos, verificación de correo, recuperación de contraseña, crear/editar/pausar/eliminar QR estáticos y dinámicos, límites por plan (incluida la retención de estadísticas por plan), redirección y registro de escaneos, estadísticas, creación masiva por CSV, panel admin (usuarios, notas, moderación de QR, planes con precios, límites y funciones, plantillas de correo, documentos legales, configuración de identidad, SMTP, tema y pagos), envío de correo por SMTP.
 
 **Pendiente o simulado:**
-- **Pagos:** facturación CFDI (datos fiscales y "Descargar factura" en `app/plan.php`) y `admin/planes.php` siguen simulados (`data-simular*`). Las claves de pasarela se guardan sin cifrar en `configuracion`.
-- **API pública y claves API:** existe la tabla `claves_api`, pero no hay endpoints.
+- **Pagos:** facturación CFDI (datos fiscales y "Descargar factura" en `app/plan.php`) sigue simulada (`data-simular*`). Las claves de pasarela se guardan sin cifrar en `configuracion`.
+- **API pública y claves API:** existe la tabla `claves_api` y el límite `planes.max_claves_api`, pero no hay endpoints; por eso la API no se anuncia en los precios ni en `app/plan.php`.
 - La capa MVC está a medias (ver Arquitectura).
 
 ## Convenciones de código

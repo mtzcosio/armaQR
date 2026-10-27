@@ -104,9 +104,7 @@ function datos_caracteristicas(array $p): array
     if ($p['permite_masivo']) {
         $c[] = 'Generación masiva desde CSV';
     }
-    if ($p['max_claves_api'] > 0) {
-        $c[] = 'API con ' . $p['max_claves_api'] . ' claves';
-    }
+    // max_claves_api no se anuncia: la API pública aún no existe.
     if (!$p['marca_agua']) {
         $c[] = 'Sin marca de agua';
     }
@@ -150,6 +148,68 @@ function datos_planes(bool $soloPublicos = false): array
         $planes[$p['codigo']] = $p;
     }
     return $planes;
+}
+
+/** Campos de límite del plan: vacío = ilimitado (NULL). */
+const PLAN_LIMITES = [
+    'max_qr_estaticos_mes' => 'QR estáticos al mes',
+    'max_qr_dinamicos' => 'QR dinámicos',
+    'dias_retencion_escaneos' => 'Días de estadísticas',
+];
+const PLAN_FUNCIONES = ['permite_logo', 'permite_svg_pdf', 'permite_analitica', 'permite_masivo', 'marca_agua', 'es_publico'];
+const PLAN_MAXIMO = 1_000_000;
+
+/**
+ * Valida el formulario de Administración › Planes. Devuelve las columnas a guardar o el mensaje
+ * de error. El plan Gratis siempre cuesta 0 (no se puede comprar).
+ */
+function datos_plan_desde_formulario(array $entrada, bool $esGratis): array|string
+{
+    $d = ['descripcion' => mb_substr(trim((string) ($entrada['descripcion'] ?? '')), 0, 500)];
+
+    foreach (['precio_mensual' => 'mensual', 'precio_anual' => 'anual'] as $campo => $texto) {
+        $valor = trim((string) ($entrada[$campo] ?? ''));
+        if ($esGratis || $valor === '') {
+            $d[$campo] = 0.0;
+            continue;
+        }
+        if (!is_numeric($valor) || (float) $valor < 0 || (float) $valor > 999999.99) {
+            return "El precio {$texto} debe ser un número entre 0 y 999,999.99.";
+        }
+        $d[$campo] = round((float) $valor, 2);
+    }
+
+    foreach (PLAN_LIMITES as $campo => $texto) {
+        $valor = trim((string) ($entrada[$campo] ?? ''));
+        if ($valor === '') {
+            $d[$campo] = null;
+            continue;
+        }
+        if (!ctype_digit($valor) || (int) $valor > PLAN_MAXIMO) {
+            return "{$texto}: escribe un número entero de 0 a " . numero(PLAN_MAXIMO) . ', o déjalo vacío para que sea ilimitado.';
+        }
+        $d[$campo] = (int) $valor;
+    }
+    if ($d['dias_retencion_escaneos'] !== null && $d['dias_retencion_escaneos'] < 7) {
+        return 'Días de estadísticas: el periodo más corto que se muestra es de 7 días.';
+    }
+
+    $claves = trim((string) ($entrada['max_claves_api'] ?? ''));
+    if ($claves !== '' && (!ctype_digit($claves) || (int) $claves > 1000)) {
+        return 'Claves API: escribe un número entero de 0 a 1,000.';
+    }
+    $d['max_claves_api'] = (int) $claves;
+
+    foreach (PLAN_FUNCIONES as $campo) {
+        $d[$campo] = !empty($entrada[$campo]) ? 1 : 0;
+    }
+    return $d;
+}
+
+/** ¿Un plan con esa retención deja ver un periodo de $dias días? NULL = sin límite. */
+function datos_periodo_visible(?int $retencion, int $dias): bool
+{
+    return $retencion === null || $dias <= $retencion;
 }
 
 /* ---------------------------------------------------------------------
