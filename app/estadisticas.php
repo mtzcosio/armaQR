@@ -134,18 +134,20 @@ pagina_inicio('Estadísticas', 'app', 'estadisticas');
 
     <?php if ($esPago && !$qrSel && $dinamicos): ?>
     <section class="caja">
-      <div class="caja-cabeza"><h2>Tus QR con más escaneos</h2></div>
+      <div class="caja-cabeza"><div><h2>Tus QR con más escaneos</h2><p>Últimos <?= $dias ?> días</p></div></div>
       <div class="tabla-envoltura">
         <table class="tabla">
           <thead><tr><th>Código</th><th>Destino</th><th class="num">Escaneos</th><th>Último escaneo</th></tr></thead>
           <tbody>
-            <?php usort($dinamicos, fn($a, $b) => $b['total_escaneos'] <=> $a['total_escaneos']);
-            foreach ($dinamicos as $q): ?>
+            <?php // Solo el periodo elegido: el acumulado histórico rebasaría la retención del plan.
+            $porQr = datos_escaneos_por_qr($dias, $usuario['id']);
+            usort($dinamicos, fn($a, $b) => ($porQr[$b['id']]['total'] ?? 0) <=> ($porQr[$a['id']]['total'] ?? 0));
+            foreach ($dinamicos as $q): $uso = $porQr[$q['id']] ?? ['total' => 0, 'ultimo' => null]; ?>
             <tr>
               <td><a class="enlace" href="<?= url_app('estadisticas.php', ['qr' => $q['id'], 'dias' => $dias]) ?>"><?= e($q['nombre']) ?></a></td>
               <td class="texto-gris"><?= e($q['destino']) ?></td>
-              <td class="num"><?= numero($q['total_escaneos']) ?></td>
-              <td class="texto-gris"><?= $q['ultimo_escaneo'] ? e(fecha_corta($q['ultimo_escaneo'])) : '—' ?></td>
+              <td class="num"><?= numero($uso['total']) ?></td>
+              <td class="texto-gris"><?= $uso['ultimo'] ? e(fecha_corta($uso['ultimo'])) : '—' ?></td>
             </tr>
             <?php endforeach; ?>
           </tbody>

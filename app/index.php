@@ -13,6 +13,8 @@ $conAnterior      = datos_periodo_visible($plan['dias_retencion_escaneos'], 60);
 $escaneosMes      = $esPago ? array_sum(datos_serie_escaneos(30, $usuario['id'])) : 0;
 $escaneosAnterior = $esPago && $conAnterior ? array_sum(datos_serie_escaneos(30, $usuario['id'], null, 30)) : 0;
 $cambioMes        = datos_variacion($escaneosMes, $escaneosAnterior);
+$retencion        = $plan['dias_retencion_escaneos'];
+$porQr            = datos_escaneos_por_qr($retencion, (int) $usuario['id']); // escaneos de cada QR dentro de la retención del plan
 $tiposContenido   = ['url' => 'Liga', 'whatsapp' => 'WhatsApp', 'wifi' => 'WiFi', 'vcard' => 'Contacto', 'texto' => 'Texto', 'email' => 'Correo'];
 
 /** Formulario POST de una acción sobre un QR (auth/qr.php). */
@@ -91,7 +93,7 @@ pagina_inicio('Mis QR', 'app', 'qrs');
       </div>
       <div class="escaneos">
         <?php if ($esDinamico): ?>
-          <strong><?= numero($q['total_escaneos']) ?></strong><small>escaneos</small>
+          <strong><?= numero($porQr[$q['id']]['total'] ?? 0) ?></strong><small><?= $retencion === null ? 'escaneos' : 'escaneos en ' . numero($retencion) . ' días' ?></small>
         <?php else: ?>
           <small>Sin medición</small>
         <?php endif; ?>

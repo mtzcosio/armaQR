@@ -36,6 +36,17 @@ if (count($anterior) !== 7 || array_key_last($anterior) !== date('Y-m-d', strtot
     $fallas[] = 'El periodo anterior debe terminar 7 días antes de hoy.';
 }
 
+// Escaneos por QR: un periodo nunca suma más que el histórico, y cada fila trae total y último.
+$duenoQr = (int) (datos_consulta('SELECT usuario_id FROM qr_escaneos e JOIN qr_codigos q ON q.id = e.qr_id LIMIT 1')[0]['usuario_id'] ?? 0);
+$historico = datos_escaneos_por_qr(null, $duenoQr);
+$semana = datos_escaneos_por_qr(7, $duenoQr);
+foreach ($semana as $qrId => $fila) {
+    if (!isset($historico[$qrId]) || $fila['total'] > $historico[$qrId]['total'] || $fila['ultimo'] < date('Y-m-d', strtotime('-6 days'))) {
+        $fallas[] = 'datos_escaneos_por_qr() debe limitarse al periodo pedido.';
+        break;
+    }
+}
+
 $des = datos_desgloses(30);
 if (count($des['horas']) !== 24 || !is_array($des['ciudades'])) {
     $fallas[] = 'datos_desgloses() no tiene la forma esperada.';

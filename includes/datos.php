@@ -344,16 +344,6 @@ function datos_pagos(?int $usuarioId = null): array
     ]), $filas);
 }
 
-function datos_claves_api_activas(int $usuarioId): int
-{
-    return (int) (datos_consulta(
-        'SELECT COUNT(*) AS n FROM claves_api
-         WHERE usuario_id = :u AND eliminado = 0 AND revocada_en IS NULL
-           AND (expira_en IS NULL OR expira_en > NOW())',
-        [':u' => $usuarioId]
-    )[0]['n'] ?? 0);
-}
-
 /* ---------------------------------------------------------------------
  * Series diarias y desgloses de escaneos
  * ------------------------------------------------------------------- */
@@ -417,6 +407,30 @@ function datos_escaneos_unicos(int $dias, ?int $usuarioId = null, ?int $qrId = n
          WHERE e.fecha_escaneo >= :desde AND e.fecha_escaneo < :hasta{$filtro}",
         $params + [':desde' => $desde, ':hasta' => $hasta]
     )[0]['n'] ?? 0);
+}
+
+/**
+ * Escaneos y último escaneo de cada QR en los últimos $dias días (NULL = desde siempre), para no
+ * mostrar más historia de la que deja ver el plan: [qr_id => ['total' => n, 'ultimo' => fecha]].
+ */
+function datos_escaneos_por_qr(?int $dias, int $usuarioId): array
+{
+    [$filtro, $params] = datos_filtro_escaneos($usuarioId, null);
+    if ($dias !== null) {
+        $filtro .= ' AND e.fecha_escaneo >= :desde';
+        $params[':desde'] = date('Y-m-d H:i:s', strtotime('tomorrow') - $dias * 86400); // mismo inicio que datos_rango()
+    }
+    $res = [];
+    foreach (datos_consulta(
+        "SELECT e.qr_id, COUNT(*) AS n, MAX(e.fecha_escaneo) AS ultimo
+         FROM qr_escaneos e JOIN qr_codigos q ON q.id = e.qr_id
+         WHERE 1 = 1{$filtro}
+         GROUP BY e.qr_id",
+        $params
+    ) as $f) {
+        $res[(int) $f['qr_id']] = ['total' => (int) $f['n'], 'ultimo' => $f['ultimo']];
+    }
+    return $res;
 }
 
 /** Desgloses de escaneos del periodo: dispositivo y sistema (en %), ciudades y horas (conteos). */

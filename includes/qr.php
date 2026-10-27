@@ -226,14 +226,17 @@ function qr_sobrantes(array $ids, ?int $limite): array
  * Pausa los QR dinámicos activos que excedan el límite del plan vigente (p. ej. al bajar de
  * Negocio a Pro) y conserva los más antiguos. Con un plan sin dinámicos (Gratis o vencido) no
  * pausa nada: r.php ya no redirige ninguno y, si vuelve a pagar, siguen activos. Devuelve cuántos pausó.
+ * Sin suscripción vigente el usuario está en Gratis (igual que en datos_usuario_actual()).
+ * $responsableId queda en usuario_modificacion: el admin que hizo el cambio o, si viene de la
+ * pasarela, el propio dueño (su pago o cancelación lo provocó).
  */
-function qr_ajustar_al_plan(int $usuarioId): int
+function qr_ajustar_al_plan(int $usuarioId, ?int $responsableId = null): int
 {
     $plan = datos_consulta(
         'SELECT p.max_qr_dinamicos FROM suscripciones s JOIN planes p ON p.id = s.plan_id
          WHERE s.usuario_vigente = :u AND ' . SQL_SUSCRIPCION_AL_DIA,
         [':u' => $usuarioId]
-    )[0] ?? null;
+    )[0] ?? datos_consulta("SELECT max_qr_dinamicos FROM planes WHERE codigo = 'gratis' AND eliminado = 0")[0] ?? null;
     $limite = $plan === null ? 0 : datos_entero_o_nulo($plan['max_qr_dinamicos']);
     if ($limite === 0) {
         return 0;
@@ -245,8 +248,10 @@ function qr_ajustar_al_plan(int $usuarioId): int
     ), 'id'));
     $sobran = qr_sobrantes($ids, $limite);
     if ($sobran) {
-        datos_pdo()->prepare('UPDATE qr_codigos SET activo = 0 WHERE id IN (' . implode(',', array_fill(0, count($sobran), '?')) . ')')
-            ->execute($sobran);
+        datos_pdo()->prepare(
+            'UPDATE qr_codigos SET activo = 0, usuario_modificacion = ?, fecha_modificacion = NOW()
+             WHERE id IN (' . implode(',', array_fill(0, count($sobran), '?')) . ')'
+        )->execute([$responsableId ?? $usuarioId, ...$sobran]);
     }
     return count($sobran);
 }

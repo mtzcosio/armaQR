@@ -105,7 +105,7 @@ switch ($accion) {
             )->execute([':u' => $usuario['id'], ':plan' => $plan['id'], ':per' => $periodicidad, ':admin' => $admin['id']]);
         }
         $aviso = $vigente && $vigente['pasarela'] ? ' Ojo: no cambia lo que cobra la pasarela; ajústalo también allá.' : '';
-        $pausados = qr_ajustar_al_plan((int) $usuario['id']);
+        $pausados = qr_ajustar_al_plan((int) $usuario['id'], (int) $admin['id']);
         if ($pausados > 0) {
             $aviso .= ' Se pausaron sus ' . numero($pausados) . ' QR dinámicos más nuevos porque excedían el límite del plan.';
         }

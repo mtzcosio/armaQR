@@ -53,8 +53,16 @@ $mensaje = "Guardaste el plan {$plan['nombre']}.";
 $nuevoTope = $datos['max_qr_dinamicos'];
 if ($nuevoTope !== null && $nuevoTope > 0 && ($plan['max_qr_dinamicos'] === null || $nuevoTope < $plan['max_qr_dinamicos'])) {
     $pausados = 0;
-    foreach (datos_consulta('SELECT usuario_vigente FROM suscripciones WHERE usuario_vigente IS NOT NULL AND plan_id = :p', [':p' => $plan['id']]) as $s) {
-        $pausados += qr_ajustar_al_plan((int) $s['usuario_vigente']);
+    // Dueños de dinámicos activos con este plan; en Gratis también quienes no tienen suscripción vigente.
+    $duenos = datos_consulta(
+        "SELECT DISTINCT q.usuario_id FROM qr_codigos q
+         LEFT JOIN suscripciones s ON s.usuario_vigente = q.usuario_id AND " . SQL_SUSCRIPCION_AL_DIA . "
+         WHERE q.tipo = 'dinamico' AND q.activo = 1 AND q.eliminado = 0
+           AND (s.plan_id = :p OR (s.id IS NULL AND :gratis = 1))",
+        [':p' => $plan['id'], ':gratis' => (int) ($plan['codigo'] === 'gratis')]
+    );
+    foreach ($duenos as $d) {
+        $pausados += qr_ajustar_al_plan((int) $d['usuario_id'], (int) $admin['id']);
     }
     if ($pausados > 0) {
         $mensaje .= ' Se pausaron ' . numero($pausados) . ' QR dinámicos de clientes que excedían el nuevo límite.';
