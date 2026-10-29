@@ -25,6 +25,10 @@ $perdida = new PDOException('SQLSTATE[HY000]: General error: 2013 Lost connectio
 $perdida->errorInfo = ['HY000', 2013, 'Lost connection to MySQL server during query'];
 $prueba('Se perdió la conexión (2013)', Database::esCaida(new RuntimeException('envuelto', 0, $perdida)));
 
+$credenciales = new PDOException("No se pudo conectar a MySQL/MariaDB: SQLSTATE[HY000] [1045] Access denied for user 'x'@'y'", 0,
+    new PDOException("SQLSTATE[HY000] [1045] Access denied for user 'x'@'y'"));
+$prueba('No conecta por credenciales (1045)', Database::esCaida($credenciales));
+
 $sintaxis = new PDOException('SQLSTATE[42000]: Syntax error');
 $sintaxis->errorInfo = ['42000', 1064, 'You have an error in your SQL syntax'];
 $prueba('Un error de SQL no es caída', !Database::esCaida($sintaxis));

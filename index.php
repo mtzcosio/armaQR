@@ -10,7 +10,14 @@ if (!defined('MVC_CONTROLLER_RUNNING')) {
 
 // Carga los helpers comunes y el layout de la aplicación antes de renderizar una vista.
 require_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/qr_tipos_info.php';
+require_once __DIR__ . '/includes/estadisticas_vista.php';
 $planes = datos_planes(true);
+
+// Tablero de ejemplo de la sección de estadísticas (datos ficticios de un menú, siempre los mismos).
+$est = qr_tipo_ejemplo_estadisticas('menu');
+$grafDias = ['tipo' => 'line', 'etiquetas' => array_map(fn($f) => date('j/n', strtotime($f)), array_keys($est['serie'])),
+             'series' => [['nombre' => 'Escaneos', 'datos' => array_values($est['serie'])]]];
 pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
     'Crea códigos QR gratis para tu negocio. Con un QR dinámico cambias el contenido sin reimprimir, muestras tu menú, PDF, cupón o tarjeta de contacto y ves cuántas personas lo escanean.');
 ?>
@@ -22,7 +29,7 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
     <div class="envoltura">
       <div class="heroe-texto">
         <h1>Tu código QR, listo mientras escribes.</h1>
-        <p>Pega una liga, tu WhatsApp o la clave del Wi-Fi y el código aparece al instante. Crea tu cuenta para guardarlo, cambiar el contenido después de imprimirlo y ver cuántas personas lo escanean.</p>
+        <p>Pega una liga, tu WhatsApp o la clave del Wi-Fi y el código aparece al instante. Crea tu cuenta para guardarlo, cambiar el contenido después de imprimirlo y ver en gráficas cada escaneo: cuándo, desde qué ciudad y con qué celular.</p>
 
         <form class="generador" data-generador="vista-heroe" data-dominio="<?= e(dominio_portal()) ?>" onsubmit="return false">
           <div class="segmentado" role="group" aria-label="Tipo de contenido">
@@ -113,7 +120,7 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
           <ul class="lista-check">
             <li><?= icono('check') ?> Cambias el contenido sin reimprimir</li>
             <li><?= icono('check') ?> Muestra tu menú, PDF, cupón o contacto en una página con tus colores</li>
-            <li><?= icono('check') ?> Ves escaneos por día, hora, ciudad y dispositivo, y los exportas a CSV</li>
+            <li><?= icono('check') ?> Cada escaneo se guarda en tus gráficas: día, hora, ciudad y dispositivo (<a class="enlace" href="#estadisticas">ver ejemplo</a>)</li>
             <li><?= icono('check') ?> Lo pausas cuando termina una promoción</li>
             <li><?= icono('check') ?> Incluido desde el plan Pro</li>
           </ul>
@@ -122,8 +129,58 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
     </div>
   </section>
 
+  <!-- Estadísticas: cada escaneo se guarda y se ve en gráficas (ejemplo con includes/estadisticas_vista.php) -->
+  <section class="seccion seccion-papel" id="estadisticas">
+    <div class="envoltura">
+      <div class="seccion-cabeza">
+        <h2>Cada escaneo queda guardado en tus gráficas</h2>
+        <p>Cuando alguien escanea tu QR dinámico, registramos al instante cuándo fue, desde qué ciudad y con qué celular. Así sabes qué impreso funciona, dónde y a qué hora conviene lanzar tu promoción.</p>
+      </div>
+
+      <ol class="escaneo-flujo">
+        <li><span class="escaneo-flujo-icono"><?= icono('celular', 24) ?></span><div><strong>Alguien escanea tu QR</strong><p>En la mesa, en un volante o en tu vitrina.</p></div></li>
+        <li><span class="escaneo-flujo-icono"><?= icono('reloj', 24) ?></span><div><strong>Se registra al momento</strong><p>Fecha y hora, país y ciudad aproximados, tipo de celular, sistema y navegador.</p></div></li>
+        <li><span class="escaneo-flujo-icono"><?= icono('grafica', 24) ?></span><div><strong>Lo ves en tus gráficas</strong><p>Por día, por hora y por lugar, de cada código o de todos juntos. Y lo exportas a CSV.</p></div></li>
+      </ol>
+
+      <div class="estadisticas-ejemplo tablero-landing">
+        <span class="estadisticas-ejemplo-sello"><?= icono('grafica', 15) ?> Ejemplo: el menú de un restaurante durante 30 días</span>
+        <section class="cifras" aria-label="Resumen de ejemplo">
+          <div class="cifra destaca"><span>Escaneos</span><strong><?= numero($est['total']) ?></strong><small>Últimos 30 días</small></div>
+          <div class="cifra"><span>Personas distintas</span><strong><?= numero($est['unicos']) ?></strong><small>Sin guardar su IP</small></div>
+          <div class="cifra"><span>Mejor día</span><strong><?= e(fecha_corta($est['mejor'])) ?></strong><small><?= numero($est['mejor_n']) ?> escaneos</small></div>
+          <div class="cifra"><span>Ciudad principal</span><strong><?= e($est['ciudades'][0]['ciudad']) ?></strong><small><?= numero($est['ciudades'][0]['n']) ?> escaneos</small></div>
+        </section>
+
+        <div class="rejilla-mitad">
+          <section class="caja">
+            <div class="caja-cabeza"><div><h3>Escaneos por día</h3><p>Cada punto es un día de escaneos</p></div></div>
+            <div class="caja-cuerpo"><div class="grafica grafica-chica"><canvas data-grafica='<?= e(json_encode($grafDias)) ?>' aria-label="Gráfica de ejemplo: escaneos por día" role="img"></canvas></div></div>
+          </section>
+          <section class="caja">
+            <div class="caja-cabeza"><div><h3>¿Desde dónde lo escanean?</h3><p>País y ciudad aproximados</p></div></div>
+            <div class="caja-cuerpo"><?= estadisticas_ubicacion(['paises' => [], 'ciudades' => array_slice($est['ciudades'], 0, 4), 'sin_ubicacion' => 0], false) ?></div>
+          </section>
+        </div>
+
+        <section class="caja">
+          <div class="caja-cabeza"><div><h3>Día y hora</h3><p>Los momentos de la semana en que más lo escanean</p></div></div>
+          <div class="caja-cuerpo"><?= estadisticas_mapa_calor($est['mapa']) ?></div>
+        </section>
+      </div>
+
+      <div class="estadisticas-landing-pie">
+        <p><?= icono('candado', 18) ?> <span>No guardamos nombres, teléfonos ni direcciones IP: la ubicación se calcula al momento y solo queda la ciudad aproximada.</span></p>
+        <div class="cabecera-acciones">
+          <a class="boton boton-principal" href="<?= url('registro.php?plan=pro') ?>">Quiero ver mis escaneos</a>
+          <a class="boton boton-fantasma" href="<?= e(url('tipo.php?t=menu')) ?>#estadisticas">Ver un ejemplo completo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Tipos de QR dinámicos: mismo catálogo que "Crear QR" (includes/qr_tipos.php) -->
-  <section class="seccion seccion-papel" id="tipos">
+  <section class="seccion" id="tipos">
     <div class="envoltura">
       <div class="seccion-cabeza">
         <h2>Una página para cada cosa que quieras compartir</h2>
@@ -139,7 +196,7 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
   </section>
 
   <!-- Usos -->
-  <section class="seccion">
+  <section class="seccion seccion-papel">
     <div class="envoltura">
       <div class="seccion-cabeza">
         <h2>Lo usan negocios como el tuyo</h2>
@@ -226,4 +283,4 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
 </main>
 
 <?php pie_publico(); ?>
-<?php pagina_fin('publico', [CDN_QR]); ?>
+<?php pagina_fin('publico', [CDN_QR, CDN_CHART]); ?>

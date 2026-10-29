@@ -288,6 +288,7 @@ function cabecera_publica(): void
       <a href="<?= e($inicio) ?>#como-funciona">Cómo funciona</a>
       <a href="<?= e($inicio) ?>#dinamicos">QR dinámicos</a>
       <a href="<?= e($inicio) ?>#tipos">Tipos de QR</a>
+      <a href="<?= e($inicio) ?>#estadisticas">Estadísticas</a>
       <a href="<?= e($inicio) ?>#precios">Precios</a>
       <a href="<?= e($inicio) ?>#preguntas">Preguntas</a>
     </nav>

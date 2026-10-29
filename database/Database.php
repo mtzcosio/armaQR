@@ -108,10 +108,16 @@ final class Database
         self::connection()->query('SELECT 1');
     }
 
-    /** ¿El error es porque la base de datos no responde (sin conexión, se cayó o se agotó el tiempo)? */
+    /**
+     * ¿El error es porque no hay base de datos? Cualquier falla al conectar (credenciales, servidor,
+     * tiempo agotado) o una conexión que se cae a media consulta.
+     */
     public static function esCaida(\Throwable $error): bool
     {
         for ($e = $error; $e !== null; $e = $e->getPrevious()) {
+            if ($e instanceof PDOException && str_starts_with($e->getMessage(), 'No se pudo conectar a MySQL/MariaDB')) {
+                return true;
+            }
             if ($e instanceof PDOException) {
                 $codigo = (int) ($e->errorInfo[1] ?? 0);
                 // 2002: no conecta · 2006: "server has gone away" · 2013: se perdió la conexión
