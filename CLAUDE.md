@@ -65,19 +65,20 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 
 | Carpeta | Qué hay |
 |---|---|
-| raíz | Páginas públicas: `index.php` (landing + generador), `login`, `registro`, `recuperar`, `restablecer`, `verificar`, `privacidad`, `terminos`, `r.php` |
-| [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar en 3 pasos: tipo, contenido y diseño del QR, con un teléfono de vista previa), `vista-pagina` (POST: HTML de la vista previa en vivo), `estadisticas`, `csv` (masivo), `plan` |
+| raíz | Páginas públicas: `index.php` (landing + generador), `login`, `registro`, `recuperar`, `restablecer`, `verificar`, `privacidad`, `terminos`, `r.php`, `tipo.php?t=` (página explicativa de cada tipo dinámico) y `ejemplo.php?t=` (su ejemplo con datos ficticios, dentro de un teléfono) |
+| [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar en 3 pasos: tipo, contenido y diseño del QR, con un teléfono de vista previa; `?tipo=` llega con ese tipo elegido), `vista-pagina` (POST: HTML de la vista previa en vivo), `estadisticas`, `csv` (masivo), `plan` |
 | [admin/](admin/) | Panel admin: `index`, `usuarios`/`usuario`, `qrs` (moderación), `planes`, `pagos`, `correos`/`correo`/`correo-variables`/`correo-ver`, `legales`/`legal`, `configuracion` |
 | [auth/](auth/) | **Endpoints POST** (acciones): login, registro, logout, qr, qr-csv, pago, planes, usuarios, correos, legales, configuracion, recuperar, restablecer, verificar. Validan método, CSRF y permisos, luego `flash()` + `redirigir()` (PRG) |
 | [includes/](includes/) | Librerías de funciones con prefijo por módulo (ver abajo) |
 | [webhooks/](webhooks/) | `stripe.php` y `conekta.php`: avisos de las pasarelas (sin sesión ni CSRF; Stripe valida firma, Conekta se reconsulta a la API) |
 | [database/](database/) | Esquema, migraciones, `Database.php`, scripts CLI |
 | [tests/](tests/) | Pruebas propias (sin PHPUnit), runner `run.php` |
+| `assets/ejemplos/` | Imágenes SVG, PDF y audio de los ejemplos de `ejemplo.php` (versionados; nunca se borran) |
 | `assets/uploads/` | Logos de QR (`qr/`), de marca (`brand/`) y archivos de las páginas de QR (`paginas/`: PDF, audio, imágenes), nombres hash |
 
 ### Módulos en `includes/` (prefijo = módulo)
 
-- `layout.php`: `pagina_inicio()`/`panel_inicio()`/`pagina_fin()`, `icono()`, `aviso()`, `insignia_*()`, `url_app()`, `asset()`. Carga config, seguridad, datos y tema.
+- `layout.php`: `pagina_inicio()` (su 5.º parámetro es la descripción para buscadores y Open Graph)/`panel_inicio()`/`pagina_fin()`, `cabecera_publica()`/`pie_publico()` (landing y páginas de tipos), `icono()`, `aviso()`, `insignia_*()`, `url_app()`, `asset()`. Carga config, seguridad, datos y tema.
 - `seguridad.php`: inicia la sesión, `redirigir()`, `csrf_token()/csrf_campo()/csrf_valido()`, `flash()/flash_tomar()`, `limite_*()` (bloqueo por intentos fallidos, guardado en archivos).
 - `datos.php`: consultas `datos_*()` (planes, usuarios, QR, pagos, series de escaneos, resumen admin), `configuracion_activa()`, `nombre_portal()`, `dominio_portal()`.
 - `qr.php`: `qr_contenido()` (debe coincidir con `construirContenido()` de app.js), límites de plan (`qr_limite_alcanzado`, `qr_ajustar_al_plan`: al bajar de plan pausa los dinámicos más nuevos que excedan el límite), `qr_insertar`, `qr_por_codigo`, `qr_registrar_escaneo` (IP como `sha256(ip + sal)`, la sal se guarda en `configuracion.escaneos_sal`), detección de robots y agente.
@@ -88,6 +89,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
   - Las páginas guardan sus colores en `campos.estilo` (`primario`, `secundario`; paletas en `QR_PAGINA_PALETAS`, campo `pagina_estilo[...]`). Las guardadas antes usan el color del QR.
   - Modo borrador (`qr_pagina_borrador()`, `qr_pagina_vista_previa()`): arma la página aunque falten datos, para la vista previa. Las validaciones usan `qr_pagina_falta()` en lugar de lanzar directo. Los archivos aún sin subir llegan como URL `blob:` en `pg[tipo][vista_campo]`, solo en este modo.
   - También genera los `.vcf` y `.ics` y elige la tienda para Aplicaciones.
+- `qr_tipos_info.php`: textos de `tipo.php` por tipo (`qr_tipo_info()`) y su ejemplo (`qr_tipo_ejemplo_campos()`), que pasa por `qr_pagina_contenido()` como un QR real. Un tipo nuevo necesita sus textos y su ejemplo aquí (`QrTiposInfoTest` lo exige).
 - `qr_paginas_form.php`: un `<fieldset data-panel-tipo data-panel-modo="dinamico">` por tipo en `app/crear.php`, con sus campos en secciones plegables (`qr_pagina_grupo()`, `<details class="acordeon">`), más la sección de colores `qr_pagina_grupo_diseno()`. El JS deshabilita los ocultos para que no se envíen. Las listas repetibles usan `<template data-lista-plantilla>` con los marcadores `__i__` y `__j__`.
 - `qr_pagina_vista.php`: `qr_pagina_mostrar($qr, $modo)`, la página que muestra `r.php` (`publico` o `vista_previa`) y el teléfono de `app/crear.php` (`telefono`, con `$qr['campos']` sin guardar).
   - `r.php?descargar=vcf|ics` sirve los archivos y no cuenta como escaneo.

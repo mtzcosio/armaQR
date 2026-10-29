@@ -11,24 +11,10 @@ if (!defined('MVC_CONTROLLER_RUNNING')) {
 // Carga los helpers comunes y el layout de la aplicación antes de renderizar una vista.
 require_once __DIR__ . '/includes/layout.php';
 $planes = datos_planes(true);
-pagina_inicio('Genera códigos QR gratis');
+pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
+    'Crea códigos QR gratis para tu negocio. Con un QR dinámico cambias el contenido sin reimprimir, muestras tu menú, PDF, cupón o tarjeta de contacto y ves cuántas personas lo escanean.');
 ?>
-<header class="cabecera">
-  <div class="envoltura">
-    <a class="logo" href="<?= url('index.php') ?>"><?= marca(28) ?><?= e(nombre_portal()) ?></a>
-    <nav class="nav-publica" aria-label="Secciones">
-      <a href="#como-funciona">Cómo funciona</a>
-      <a href="#dinamicos">QR dinámicos</a>
-      <a href="#precios">Precios</a>
-      <a href="#preguntas">Preguntas</a>
-    </nav>
-    <div class="cabecera-acciones">
-      <?= boton_tema() ?>
-      <a class="boton boton-fantasma boton-chico" href="<?= url('login.php') ?>">Iniciar sesión</a>
-      <a class="boton boton-principal boton-chico" href="<?= url('registro.php') ?>">Crear cuenta gratis</a>
-    </div>
-  </div>
-</header>
+<?php cabecera_publica(); ?>
 
 <main id="contenido">
   <!-- Héroe: el generador funcionando es lo primero que se ve -->
@@ -36,18 +22,18 @@ pagina_inicio('Genera códigos QR gratis');
     <div class="envoltura">
       <div class="heroe-texto">
         <h1>Tu código QR, listo mientras escribes.</h1>
-        <p>Pega una liga, tu WhatsApp o la clave del WiFi y el código aparece al instante. Crea tu cuenta para guardarlo, cambiar el destino después de imprimirlo y ver cuántas personas lo escanean.</p>
+        <p>Pega una liga, tu WhatsApp o la clave del Wi-Fi y el código aparece al instante. Crea tu cuenta para guardarlo, cambiar el contenido después de imprimirlo y ver cuántas personas lo escanean.</p>
 
         <form class="generador" data-generador="vista-heroe" data-dominio="<?= e(dominio_portal()) ?>" onsubmit="return false">
-          <div class="segmentado" role="tablist" aria-label="Tipo de contenido">
-            <button type="button" role="tab" data-tipo-boton="url" aria-selected="true">Liga</button>
-            <button type="button" role="tab" data-tipo-boton="whatsapp" aria-selected="false">WhatsApp</button>
-            <button type="button" role="tab" data-tipo-boton="wifi" aria-selected="false">WiFi</button>
-            <button type="button" role="tab" data-tipo-boton="texto" aria-selected="false">Texto</button>
+          <div class="segmentado" role="group" aria-label="Tipo de contenido">
+            <button type="button" data-tipo-boton="url" aria-pressed="true">Sitio web</button>
+            <button type="button" data-tipo-boton="whatsapp" aria-pressed="false">WhatsApp</button>
+            <button type="button" data-tipo-boton="wifi" aria-pressed="false">Wi-Fi</button>
+            <button type="button" data-tipo-boton="texto" aria-pressed="false">Texto</button>
           </div>
 
           <div class="generador-panel" data-panel-tipo="url">
-            <label class="oculto-visual" for="g-url">Liga</label>
+            <label class="oculto-visual" for="g-url">Dirección web</label>
             <input class="entrada" id="g-url" type="url" inputmode="url" data-campo="url" placeholder="tunegocio.mx/menu" value="tacoselguero.mx/menu">
           </div>
           <div class="generador-panel" data-panel-tipo="whatsapp" hidden>
@@ -94,7 +80,7 @@ pagina_inicio('Genera códigos QR gratis');
         <p>No necesitas diseñador ni instalar nada. Todo pasa en el navegador.</p>
       </div>
       <div class="pasos">
-        <div class="paso"><h3>Elige qué quieres compartir</h3><p>Una página, tu WhatsApp, la red WiFi, tu tarjeta de contacto o un texto.</p></div>
+        <div class="paso"><h3>Elige qué quieres compartir</h3><p>Tu sitio web, WhatsApp, la red Wi-Fi o tu tarjeta de contacto. Con un QR dinámico, también tu menú, un PDF, un cupón o un evento.</p></div>
         <div class="paso"><h3>Dale tu estilo</h3><p>Cambia los colores y agrega tu logo al centro para que se reconozca tu marca.</p></div>
         <div class="paso"><h3>Descarga e imprime</h3><p>En PNG para redes, en SVG o PDF para imprenta sin perder calidad.</p></div>
       </div>
@@ -106,7 +92,7 @@ pagina_inicio('Genera códigos QR gratis');
     <div class="envoltura">
       <div class="seccion-cabeza">
         <h2>¿Ya imprimiste 500 volantes y cambió tu página?</h2>
-        <p>Con un QR dinámico cambias el destino desde tu cuenta y el código impreso sigue funcionando.</p>
+        <p>Con un QR dinámico cambias el contenido desde tu cuenta y el código impreso sigue funcionando.</p>
       </div>
       <div class="comparar">
         <div>
@@ -115,18 +101,19 @@ pagina_inicio('Genera códigos QR gratis');
           <div class="ruta"><span>Código QR</span><i>lleva a</i><span>tunegocio.mx/menu</span></div>
           <ul class="lista-check">
             <li><?= icono('check') ?> Gratis y sin caducidad</li>
-            <li><?= icono('check') ?> Funciona sin internet para WiFi y contacto</li>
+            <li><?= icono('check') ?> Funciona sin internet para Wi-Fi y contacto</li>
             <li class="no"><?= icono('x') ?> No se puede editar</li>
             <li class="no"><?= icono('x') ?> No sabes cuántas veces lo escanean</li>
           </ul>
         </div>
         <div>
           <h3>QR dinámico</h3>
-          <p class="lead">El código apunta a una liga corta de <?= e(nombre_portal()) ?> que tú rediriges cuando quieras.</p>
-          <div class="ruta"><span>Código QR</span><i>lleva a</i><span class="destaca"><?= e(dominio_portal()) ?>/r/Mq8Tz2</span><i>y de ahí a</i><span>el destino que elijas</span></div>
+          <p class="lead">El código apunta a una liga corta de <?= e(nombre_portal()) ?> que lleva a tu sitio o a una página con tu información.</p>
+          <div class="ruta"><span>Código QR</span><i>lleva a</i><span class="destaca"><?= e(dominio_portal()) ?>/r/Mq8Tz2</span><i>y de ahí a</i><span>tu sitio o tu página</span></div>
           <ul class="lista-check">
-            <li><?= icono('check') ?> Cambias el destino sin reimprimir</li>
-            <li><?= icono('check') ?> Ves escaneos por día, ciudad y dispositivo</li>
+            <li><?= icono('check') ?> Cambias el contenido sin reimprimir</li>
+            <li><?= icono('check') ?> Muestra tu menú, PDF, cupón o contacto en una página con tus colores</li>
+            <li><?= icono('check') ?> Ves escaneos por día, hora y dispositivo</li>
             <li><?= icono('check') ?> Lo pausas cuando termina una promoción</li>
             <li><?= icono('check') ?> Incluido desde el plan Pro</li>
           </ul>
@@ -135,17 +122,33 @@ pagina_inicio('Genera códigos QR gratis');
     </div>
   </section>
 
+  <!-- Tipos de QR dinámicos: mismo catálogo que "Crear QR" (includes/qr_tipos.php) -->
+  <section class="seccion seccion-papel" id="tipos">
+    <div class="envoltura">
+      <div class="seccion-cabeza">
+        <h2>Una página para cada cosa que quieras compartir</h2>
+        <p>Con un QR dinámico eliges entre <?= count(QR_TIPOS_DINAMICOS) ?> tipos. Llenas los datos, eliges tus colores y ves en un teléfono cómo quedará antes de guardarlo. Toca un tipo para ver un ejemplo.</p>
+      </div>
+      <ul class="tipos-landing">
+        <?php foreach (QR_TIPOS_DINAMICOS as $clave => $t): ?>
+          <li><a href="<?= e(url('tipo.php?t=' . $clave)) ?>"><span class="tipo-icono"><?= icono($t['icono'], 22) ?></span><strong><?= e($t['nombre']) ?></strong><small><?= e($t['descripcion']) ?></small><span class="tipos-landing-ver">Ver ejemplo <?= icono('derecha', 14) ?></span></a></li>
+        <?php endforeach; ?>
+      </ul>
+      <p class="tipos-landing-nota">Disponibles desde el plan Pro. <a class="enlace" href="<?= url('registro.php?plan=pro') ?>">Crear mi cuenta</a></p>
+    </div>
+  </section>
+
   <!-- Usos -->
-  <section class="seccion seccion-papel">
+  <section class="seccion">
     <div class="envoltura">
       <div class="seccion-cabeza">
         <h2>Lo usan negocios como el tuyo</h2>
       </div>
       <div class="usos">
-        <div class="uso"><h3>Restaurantes y cafés</h3><p>El menú en la mesa. Cambias precios o platillos del día sin reimprimir los porta-menús.</p><span class="tipo-qr dinamico">Dinámico</span></div>
-        <div class="uso"><h3>Inmobiliarias</h3><p>Un QR en cada letrero de “Se vende” que lleva a la ficha con fotos. Sabes qué propiedad genera más interés.</p><span class="tipo-qr dinamico">Dinámico</span></div>
-        <div class="uso"><h3>Eventos y bodas</h3><p>Invitación, ubicación y álbum de fotos compartido en el mismo código.</p><span class="tipo-qr dinamico">Dinámico</span></div>
-        <div class="uso"><h3>Tiendas y consultorios</h3><p>Pedidos por WhatsApp, la red WiFi para clientes o tu tarjeta de contacto.</p><span class="tipo-qr">Estático</span></div>
+        <div class="uso"><h3>Restaurantes y cafés</h3><p>El menú en la mesa, con secciones y precios. Cambias platillos del día sin reimprimir los porta-menús.</p><span class="tipo-qr dinamico">Dinámico</span></div>
+        <div class="uso"><h3>Inmobiliarias</h3><p>Un QR en cada letrero de “Se vende” con la galería de fotos de la propiedad. Sabes cuál genera más interés.</p><span class="tipo-qr dinamico">Dinámico</span></div>
+        <div class="uso"><h3>Eventos y bodas</h3><p>Fecha, lugar con mapa y botón para agregarlo al calendario. Después del evento, cámbialo por la galería de fotos.</p><span class="tipo-qr dinamico">Dinámico</span></div>
+        <div class="uso"><h3>Tiendas y consultorios</h3><p>Pedidos por WhatsApp, la red Wi-Fi para clientes o tu tarjeta de contacto.</p><span class="tipo-qr">Estático</span></div>
       </div>
     </div>
   </section>
@@ -158,9 +161,9 @@ pagina_inicio('Genera códigos QR gratis');
           <h2>Empieza gratis. Paga cuando lo necesites.</h2>
           <p>Precios en pesos mexicanos con IVA incluido. Cancela cuando quieras.</p>
         </div>
-        <div class="segmentado" role="tablist" aria-label="Periodo de pago">
-          <button type="button" role="tab" data-periodo="mensual" aria-selected="true">Mensual</button>
-          <button type="button" role="tab" data-periodo="anual" aria-selected="false">Anual · 2 meses gratis</button>
+        <div class="segmentado" role="group" aria-label="Periodo de pago">
+          <button type="button" data-periodo="mensual" aria-pressed="true">Mensual</button>
+          <button type="button" data-periodo="anual" aria-pressed="false">Anual · 2 meses gratis</button>
         </div>
       </div>
 
@@ -200,11 +203,11 @@ pagina_inicio('Genera códigos QR gratis');
     <div class="envoltura">
       <div class="seccion-cabeza"><h2>Preguntas frecuentes</h2></div>
       <div class="preguntas">
-        <details><summary>¿Mis QR dejan de funcionar si cancelo?</summary><p>Los QR estáticos funcionan para siempre porque el contenido va dentro del código. Los dinámicos dependen de tu suscripción: si cancelas, siguen activos hasta el fin del periodo pagado y después se pausan. Si vuelves a contratar, se reactivan con la misma liga.</p></details>
+        <details><summary>¿Mis QR dejan de funcionar si cancelo?</summary><p>Los QR estáticos funcionan para siempre porque el contenido va dentro del código. Los dinámicos dependen de tu suscripción: si cancelas, siguen funcionando hasta el fin del periodo pagado. Después dejan de abrir su contenido, pero no se borran: si vuelves a contratar, la misma liga vuelve a funcionar.</p></details>
         <details><summary>¿Puedo pagar en OXXO o con transferencia?</summary><p>Sí. Aceptamos tarjeta de crédito y débito, pago en efectivo en OXXO y transferencia SPEI. Los planes anuales también se pueden pagar en una sola exhibición.</p></details>
-        <details><summary>¿Emiten factura?</summary><p>Sí. Captura tus datos fiscales en “Plan y pagos” y la factura se genera automáticamente con cada cobro.</p></details>
-        <details><summary>¿Qué datos ven de quien escanea mi QR?</summary><p>Fecha y hora, ciudad aproximada, tipo de dispositivo y sistema operativo. No guardamos nombres, teléfonos ni direcciones IP completas.</p></details>
-        <details><summary>¿Puedo cambiar de plan después?</summary><p>Cuando quieras. Al subir de plan pagas solo la diferencia proporcional; al bajar, el cambio aplica en tu siguiente cobro.</p></details>
+        <details><summary>¿Emiten factura?</summary><p>Todavía no emitimos factura electrónica (CFDI) desde la plataforma. Te avisaremos por correo en cuanto esté disponible.</p></details>
+        <details><summary>¿Qué datos ven de quien escanea mi QR?</summary><p>Fecha y hora, tipo de dispositivo, sistema operativo y navegador. No guardamos nombres, teléfonos ni direcciones IP: solo una huella cifrada de la IP, que no permite saber cuál era.</p></details>
+        <details><summary>¿Puedo cambiar de plan después?</summary><p>Cuando quieras. Con cobro automático con tarjeta, el cambio aplica de inmediato y se ajusta la diferencia proporcional: pagas la diferencia al subir y recibes un saldo a favor al bajar. Si pagas por periodo (OXXO, SPEI o pago único con tarjeta), el plan nuevo empieza en cuanto se confirma tu pago.</p></details>
       </div>
     </div>
   </section>
@@ -214,7 +217,7 @@ pagina_inicio('Genera códigos QR gratis');
       <div class="llamado">
         <div>
           <h2>Crea tu primer QR dinámico hoy</h2>
-          <p>Regístrate gratis y prueba el plan Pro 14 días sin tarjeta.</p>
+          <p>Regístrate gratis y pasa a Pro cuando quieras editar tus códigos y darles su propia página.</p>
         </div>
         <a class="boton boton-principal" href="<?= url('registro.php?plan=pro') ?>">Crear cuenta gratis</a>
       </div>
@@ -222,15 +225,5 @@ pagina_inicio('Genera códigos QR gratis');
   </section>
 </main>
 
-<footer class="pie">
-  <div class="envoltura">
-    <span>© <?= date('Y') ?> <?= e(nombre_portal()) ?>. Hecho en México.</span>
-    <nav aria-label="Legal">
-      <a href="<?= url('privacidad.php') ?>">Aviso de privacidad</a>
-      <a href="<?= url('terminos.php') ?>">Términos y condiciones</a>
-      <?php $correoContacto = configuracion_activa()['contacto_correo'] ?? ''; ?>
-      <?php if ($correoContacto !== ''): ?><a href="mailto:<?= e($correoContacto) ?>"><?= e($correoContacto) ?></a><?php endif; ?>
-    </nav>
-  </div>
-</footer>
+<?php pie_publico(); ?>
 <?php pagina_fin('publico', [CDN_QR]); ?>

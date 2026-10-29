@@ -86,7 +86,7 @@ pagina_inicio('Estadísticas', 'app', 'estadisticas');
       <div class="caja">
         <?= icono('grafica', 28) ?>
         <h2>Descubre quién escanea tus QR</h2>
-        <p>Con el plan Pro ves escaneos por día, ciudad, hora y tipo de celular de cada código dinámico.</p>
+        <p>Con el plan Pro ves escaneos por día, hora y tipo de celular de cada código dinámico.</p>
         <a class="boton boton-principal" href="<?= url_app('plan.php') ?>">Pasar a Pro</a>
       </div>
     </div>

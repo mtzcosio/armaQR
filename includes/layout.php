@@ -139,10 +139,12 @@ function insignia_estatus(string $estatus): string
 /**
  * Abre la página.
  * $area: 'publico' | 'app' | 'admin'
+ * $descripcion: resumen para buscadores y para la vista previa al compartir la liga (Open Graph).
  */
-function pagina_inicio(string $titulo, string $area = 'publico', string $activo = '', array $estilos = []): void
+function pagina_inicio(string $titulo, string $area = 'publico', string $activo = '', array $estilos = [], string $descripcion = ''): void
 {
     $tituloCompleto = $titulo ? "$titulo · " . nombre_portal() : nombre_portal();
+    $logo = configuracion_activa()['portal_logo_url'] ?? '';
     ?>
 <!doctype html>
 <html lang="es-MX">
@@ -151,6 +153,16 @@ function pagina_inicio(string $titulo, string $area = 'publico', string $activo 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?= tema_script(configuracion_activa()) ?>
   <title><?= e($tituloCompleto) ?></title>
+  <?php if ($descripcion !== ''): ?>
+  <meta name="description" content="<?= e($descripcion) ?>">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_MX">
+  <meta property="og:site_name" content="<?= e(nombre_portal()) ?>">
+  <meta property="og:title" content="<?= e($tituloCompleto) ?>">
+  <meta property="og:description" content="<?= e($descripcion) ?>">
+  <?php if (preg_match('#^https://#i', $logo)): ?><meta property="og:image" content="<?= e($logo) ?>"><?php endif; ?>
+  <meta name="twitter:card" content="summary">
+  <?php endif; ?>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -260,6 +272,49 @@ function pagina_fin(string $area = 'publico', array $scripts = []): void
     }
     echo '<script src="' . e(asset('assets/js/app.js')) . '"></script>' . "\n";
     echo "</body>\n</html>\n";
+}
+
+/** Cabecera de las páginas públicas informativas (inicio y tipos de QR). */
+function cabecera_publica(): void
+{
+    $inicio = url();
+    ?>
+<header class="cabecera">
+  <div class="envoltura">
+    <a class="logo" href="<?= e($inicio) ?>"><?= marca(28) ?><?= e(nombre_portal()) ?></a>
+    <nav class="nav-publica" aria-label="Secciones">
+      <a href="<?= e($inicio) ?>#como-funciona">Cómo funciona</a>
+      <a href="<?= e($inicio) ?>#dinamicos">QR dinámicos</a>
+      <a href="<?= e($inicio) ?>#tipos">Tipos de QR</a>
+      <a href="<?= e($inicio) ?>#precios">Precios</a>
+      <a href="<?= e($inicio) ?>#preguntas">Preguntas</a>
+    </nav>
+    <div class="cabecera-acciones">
+      <?= boton_tema() ?>
+      <a class="boton boton-fantasma boton-chico" href="<?= url('login.php') ?>">Iniciar sesión</a>
+      <a class="boton boton-principal boton-chico" href="<?= url('registro.php') ?>">Crear cuenta gratis</a>
+    </div>
+  </div>
+</header>
+<?php
+}
+
+/** Pie de las páginas públicas informativas. */
+function pie_publico(): void
+{
+    $correoContacto = configuracion_activa()['contacto_correo'] ?? '';
+    ?>
+<footer class="pie">
+  <div class="envoltura">
+    <span>© <?= date('Y') ?> <?= e(nombre_portal()) ?>. Hecho en México.</span>
+    <nav aria-label="Legal">
+      <a href="<?= url('privacidad.php') ?>">Aviso de privacidad</a>
+      <a href="<?= url('terminos.php') ?>">Términos y condiciones</a>
+      <?php if ($correoContacto !== ''): ?><a href="mailto:<?= e($correoContacto) ?>"><?= e($correoContacto) ?></a><?php endif; ?>
+    </nav>
+  </div>
+</footer>
+<?php
 }
 
 /** CDN usados */

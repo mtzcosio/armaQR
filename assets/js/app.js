@@ -392,7 +392,7 @@
         p.hidden = !visible;
         if (p.tagName === 'FIELDSET') p.disabled = !visible;
       });
-      $$('[data-tipo-boton]', form).forEach(b => b.setAttribute('aria-selected', String(b.dataset.tipoBoton === tipo)));
+      $$('[data-tipo-boton]', form).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tipoBoton === tipo)));
       actualizar();
       despuesDeTipo();
     }
@@ -674,7 +674,7 @@
   /* ---------- Precios mensual / anual ---------- */
   $$('[data-periodo]').forEach(b => b.addEventListener('click', () => {
     const periodo = b.dataset.periodo;
-    $$('[data-periodo]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    $$('[data-periodo]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
     $$('[data-mensual]').forEach(el => {
       el.querySelector('[data-monto]').textContent = periodo === 'anual' ? el.dataset.anualMes : el.dataset.mensual;
       const ahorro = el.querySelector('[data-ahorro]');

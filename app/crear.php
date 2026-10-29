@@ -27,7 +27,9 @@ $previo = $_SESSION['qr_formulario'] ?? null;
 unset($_SESSION['qr_formulario']);
 $campo = fn(string $nombre, string $deGuardado = '') => e((string) ($previo[$nombre] ?? ($guardado['campos'][$deGuardado ?: $nombre] ?? '')));
 
-$tipoInicial = $previo['tipo_contenido'] ?? ($editar['tipo_contenido'] ?? 'url');
+// ?tipo=: llega desde la página explicativa de un tipo (tipo.php) con ese tipo ya elegido.
+$tipoPedido = !$editar && is_string($_GET['tipo'] ?? null) && isset(QR_TIPOS_DINAMICOS[$_GET['tipo']]) ? $_GET['tipo'] : null;
+$tipoInicial = $previo['tipo_contenido'] ?? ($editar['tipo_contenido'] ?? ($tipoPedido ?? 'url'));
 $esDinamico  = $editar ? $editar['tipo'] === 'dinamico' : (($previo['tipo'] ?? ($esPago ? 'dinamico' : 'estatico')) === 'dinamico');
 $estaticoGuardado = $editar && $editar['tipo'] === 'estatico';
 $color = $previo['color'] ?? $diseno['color'];
@@ -55,8 +57,8 @@ $usoEstaticos = qr_estaticos_del_mes((int) $usuario['id']);
 $usoDinamicos = qr_dinamicos_activos((int) $usuario['id']);
 $restan = fn(?int $limite, int $usado) => $limite === null ? 'sin límite' : max(0, $limite - $usado) . ' de ' . $limite;
 
-// Al editar o al volver de un error se empieza en el contenido; al crear, en el tipo.
-$pasoInicial = $editar || $previo ? 2 : 1;
+// Al editar, al volver de un error o con un tipo pedido se empieza en el contenido; al crear, en el tipo.
+$pasoInicial = $editar || $previo || ($tipoPedido && $esPago) ? 2 : 1;
 $pasos = [1 => 'Tipo de QR', 2 => 'Contenido', 3 => 'Diseño del QR'];
 
 pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
@@ -89,14 +91,14 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
   <?php if ($editar): ?><input type="hidden" name="id" value="<?= (int) $editar['id'] ?>"><?php endif; ?>
 
   <div class="editor-principal">
-    <ol class="pasos">
+    <ol class="asistente-pasos">
       <?php foreach ($pasos as $n => $texto): ?>
         <li><button type="button" data-ir-paso="<?= $n ?>"><span class="pasos-numero"><?= $n ?></span> <?= $texto ?></button></li>
       <?php endforeach; ?>
     </ol>
 
     <!-- Paso 1: tipo de QR -->
-    <section class="paso" data-paso="1" aria-label="Tipo de QR">
+    <section class="asistente-paso" data-paso="1" aria-label="Tipo de QR">
       <div class="caja caja-cuerpo">
         <div class="bloque">
           <h3>Tipo de código</h3>
@@ -141,7 +143,7 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
     </section>
 
     <!-- Paso 2: contenido -->
-    <section class="paso paso-contenido" data-paso="2" aria-label="Contenido" hidden>
+    <section class="asistente-paso" data-paso="2" aria-label="Contenido" hidden>
       <?php if ($estaticoGuardado): ?>
         <p class="aviso aviso-info aviso-compacto"><?= icono('candado', 16) ?><span>El contenido de un QR estático no se puede cambiar. Solo puedes cambiar su nombre y su diseño.</span></p>
       <?php endif; ?>
@@ -214,7 +216,7 @@ pagina_inicio($editar ? 'Editar QR' : 'Crear QR', 'app', 'crear');
     </section>
 
     <!-- Paso 3: diseño del QR -->
-    <section class="paso" data-paso="3" aria-label="Diseño del QR" hidden>
+    <section class="asistente-paso" data-paso="3" aria-label="Diseño del QR" hidden>
       <?= qr_pagina_grupo('Colores del código', 'Un color oscuro sobre fondo claro se lee en cualquier celular', 'paleta',
           '<div class="campo"><label for="color-qr">Color del código</label><input class="entrada-color" id="color-qr" name="color" type="color" value="' . e($color) . '" data-color-qr></div>'
           . '<div class="campo"><label for="color-fondo">Color de fondo</label><input class="entrada-color" id="color-fondo" name="fondo" type="color" value="' . e($fondo) . '" data-fondo-qr></div>'

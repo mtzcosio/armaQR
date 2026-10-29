@@ -123,7 +123,7 @@ textarea.entrada { min-height: 96px; resize: vertical; }
   font-size: 14px; font-weight: 600; color: var(--gris); cursor: pointer; text-decoration: none;
   display: inline-flex; align-items: center; gap: 6px;
 }
-.segmentado [aria-selected="true"], .segmentado .activo { background: var(--blanco); color: var(--tinta); box-shadow: 0 1px 2px rgb(var(--sombra-rgb) / .12); }
+.segmentado [aria-selected="true"], .segmentado [aria-pressed="true"], .segmentado .activo { background: var(--blanco); color: var(--tinta); box-shadow: 0 1px 2px rgb(var(--sombra-rgb) / .12); }
 .segmentado .cuenta { font-weight: 500; color: var(--gris-claro); font-size: 12px; }
 
 /* ---------- Insignias ---------- */
@@ -782,16 +782,16 @@ fieldset.sin-borde:disabled { opacity: .6; }
 
 /* ---------- Crear QR: asistente de pasos, secciones plegables y teléfono ---------- */
 .editor-principal { display: grid; gap: 16px; min-width: 0; }
-.pasos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; counter-reset: paso; }
-.pasos button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-bottom: 3px solid var(--linea); background: none; font: inherit; font-weight: 600; font-size: 14.5px; color: var(--gris); cursor: pointer; text-align: left; }
+.asistente-pasos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; counter-reset: paso; }
+.asistente-pasos button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-bottom: 3px solid var(--linea); background: none; font: inherit; font-weight: 600; font-size: 14.5px; color: var(--gris); cursor: pointer; text-align: left; }
 .pasos-numero { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--papel); font-size: 13px; }
-.pasos .hecho { color: var(--tinta); border-color: color-mix(in srgb, var(--rosa) 45%, var(--linea)); }
-.pasos .hecho .pasos-numero { background: var(--rosa-claro); color: var(--rosa-oscuro); }
-.pasos .activo { color: var(--tinta); border-color: var(--rosa); }
-.pasos .activo .pasos-numero { background: var(--rosa); color: #fff; }
-.pasos button:focus-visible { outline: 3px solid var(--rosa); outline-offset: 2px; }
-.paso { display: grid; gap: 12px; min-width: 0; }
-.paso > fieldset.sin-borde { gap: 12px; }
+.asistente-pasos .hecho { color: var(--tinta); border-color: color-mix(in srgb, var(--rosa) 45%, var(--linea)); }
+.asistente-pasos .hecho .pasos-numero { background: var(--rosa-claro); color: var(--rosa-oscuro); }
+.asistente-pasos .activo { color: var(--tinta); border-color: var(--rosa); }
+.asistente-pasos .activo .pasos-numero { background: var(--rosa); color: #fff; }
+.asistente-pasos button:focus-visible { outline: 3px solid var(--rosa); outline-offset: 2px; }
+.asistente-paso { display: grid; gap: 12px; min-width: 0; }
+.asistente-paso > fieldset.sin-borde { gap: 12px; }
 .panel-tipo:not([hidden]) { display: grid; gap: 12px; }
 .tipo-icono { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 4px; border-radius: var(--r-chico); background: var(--papel); color: var(--tinta); }
 .tipo-contenido input:checked + span .tipo-icono { background: var(--rosa); color: #fff; }
@@ -838,5 +838,36 @@ fieldset.sin-borde:disabled { opacity: .6; }
   .telefono-pantalla { border-radius: 30px; }
 }
 @media (max-width: 640px) {
-  .pasos button { flex-direction: column; gap: 4px; font-size: 12.5px; text-align: center; padding: 8px 4px; }
+  .asistente-pasos button { flex-direction: column; gap: 4px; font-size: 12.5px; text-align: center; padding: 8px 4px; }
+}
+
+/* ---------- Landing: tipos de QR dinámicos ---------- */
+.tipos-landing { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.tipos-landing a { display: grid; gap: 2px; align-content: start; height: 100%; padding: 16px; border: 1px solid var(--linea); border-radius: var(--r); background: var(--blanco); color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+.tipos-landing a:hover { border-color: var(--rosa); transform: translateY(-2px); }
+.tipos-landing a:focus-visible { outline: 3px solid var(--rosa); outline-offset: 2px; }
+.tipos-landing-ver { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; color: var(--rosa-oscuro); font-size: 13.5px; font-weight: 600; }
+.tipos-landing strong { font-size: 15.5px; }
+.tipos-landing small { color: var(--gris); font-size: 13.5px; line-height: 1.4; }
+.tipos-landing-nota { margin-top: 18px; color: var(--gris); }
+
+/* ---------- Página explicativa de un tipo de QR (tipo.php) ---------- */
+.tipo-heroe-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: center; }
+.tipo-heroe-texto { display: grid; gap: 16px; justify-items: start; }
+.tipo-heroe-texto h1 { font-size: clamp(32px, 4.5vw, 50px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.tipo-heroe-texto .lead { font-size: 18px; color: var(--gris); max-width: 560px; }
+.tipo-icono-grande { width: 60px; height: 60px; border-radius: var(--r); background: var(--rosa-claro); color: var(--rosa-oscuro); }
+.miga-publica { display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; color: var(--gris); }
+.miga-publica a { color: inherit; }
+.miga-publica a:hover { color: var(--tinta); }
+.tipo-ejemplo { margin: 0; display: grid; gap: 12px; justify-items: center; }
+.tipo-ejemplo figcaption { max-width: 300px; font-size: 13.5px; color: var(--gris); text-align: center; }
+.tipo-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.tipo-columnas h2 { font-size: 26px; margin-bottom: 16px; }
+.tipo-notas { margin-top: 32px; padding: 20px 22px; border-radius: var(--r); background: var(--papel); display: grid; gap: 12px; }
+.tipo-notas h3 { font-size: 17px; }
+.tipo-notas .ico { color: var(--ambar); }
+@media (max-width: 860px) {
+  .tipo-heroe-rejilla, .tipo-columnas { grid-template-columns: 1fr; }
+  .tipo-ejemplo .telefono { width: 280px; height: 560px; }
 }

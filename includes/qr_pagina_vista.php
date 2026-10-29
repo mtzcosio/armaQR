@@ -97,8 +97,10 @@ function qr_pagina_mostrar(array $qr, string $modo = 'publico'): void
     $base = ($qr['codigo_corto'] ?? '') !== '' ? url('r/' . $qr['codigo_corto']) : '#';
     $marca = $qr['marca_agua'] === null || (int) $qr['marca_agua'] === 1;
     $portada = in_array($tipo, ['cupon', 'evento', 'mp3'], true);
-    $enlace = fn(string $href, string $texto, string $clase = 'micrositio-boton', string $extra = '') =>
-        '<a class="' . $clase . '" href="' . e($href) . '" rel="noopener nofollow ugc"' . $extra . '>' . $texto . '</a>';
+    // En el teléfono (vista previa y ejemplos) los botones no salen de la página: solo se muestran.
+    $enlace = fn(string $href, string $texto, string $clase = 'micrositio-boton', string $extra = '') => $modo === 'telefono'
+        ? '<a class="' . $clase . '" href="#" role="button" aria-disabled="true" onclick="return false">' . $texto . '</a>'
+        : '<a class="' . $clase . '" href="' . e($href) . '" rel="noopener nofollow ugc"' . $extra . '>' . $texto . '</a>';
 
     pagina_inicio($titulo, 'pagina-qr');
     ?>
@@ -282,6 +284,9 @@ function qr_pagina_mostrar(array $qr, string $modo = 'publico'): void
   </article>
   <?php if ($marca): ?>
     <p class="micrositio-marca">Creado con <a href="<?= e(url('index.php')) ?>"><?= e(nombre_portal()) ?></a></p>
+  <?php endif; ?>
+  <?php if ($modo === 'telefono'): ?>
+    <script>document.addEventListener('click', function (ev) { if (ev.target.closest('a')) ev.preventDefault(); });</script>
   <?php endif; ?>
 </main>
 <?php
