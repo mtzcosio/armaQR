@@ -8,9 +8,9 @@ Guía del proyecto para Claude Code. Léela antes de analizar el código desde c
 
 - **QR estático** (gratis): el contenido va dentro del código; no se edita ni se mide.
 - **QR dinámico** (de pago): el código apunta a `https://{dominio}/r/{codigo_corto}`; [r.php](r.php) registra el escaneo y redirige a `url_destino` o, en los tipos de página, muestra una página propia. Todo se puede cambiar sin reimprimir.
-- **18 tipos dinámicos** (catálogo en [includes/qr_tipos.php](includes/qr_tipos.php)):
+- **19 tipos dinámicos** (catálogo en [includes/qr_tipos.php](includes/qr_tipos.php)):
   - Redirigen: sitio web, WhatsApp, Facebook e Instagram. Aplicaciones manda a la tienda según el celular.
-  - Muestran página propia: PDF, lista de enlaces, vCard, menú, cupón, Wi-Fi, evento, empresa, video, imágenes, redes sociales, MP3 y e-mail.
+  - Muestran página propia: PDF, lista de enlaces, vCard, menú, cupón, Wi-Fi, evento, itinerario, empresa, video, imágenes, redes sociales, MP3 y e-mail.
   - Texto solo existe como estático.
 - Planes: Gratis / Pro / Negocio. Límites y funciones viven en la tabla `planes` (`NULL` = ilimitado), no en el código.
 
@@ -20,8 +20,8 @@ Especificación de negocio y BD: [docs/01-qr-saas-modelo-y-base-de-datos.md](doc
 
 - PHP 8.2 sin framework ni Composer, MySQL/MariaDB, XAMPP en Windows. URL local: `http://localhost/QR/`.
 - `BASE_URL` se calcula solo en [config.php](config.php); usar siempre `url()`, `url_app()` y `asset()` para rutas.
-- Zona horaria `America/Mexico_City`.
-- Credenciales de BD en `database/.env` (ignorado por git; plantilla en `database/.env.example`). Conexión: `App\Core\Database::connection()` → helper `datos_pdo()`.
+- Zona horaria `America/Mexico_City`. La conexión hace `SET time_zone` con esa zona (`Database::ZONA_HORARIA`), así que `NOW()` y `CURRENT_TIMESTAMP` coinciden con PHP aunque el MySQL de Hostinger esté en UTC.
+- Credenciales de BD en `database/.env` (ignorado por git; plantilla en `database/.env.example`). Conexión: `App\Core\Database::connection()` → helper `datos_pdo()`. Si la BD no responde (errores 2002/2006/2013), el manejador global de `Database.php` muestra una página 503 breve sin datos del servidor y deja el detalle en el log.
 - Front sin build: [assets/css/app.css](assets/css/app.css) (hoja única) y [assets/js/app.js](assets/js/app.js) (vanilla JS). La imagen del QR se genera **en el navegador** con `qrcode-generator` desde CDN (`CDN_QR` en [includes/layout.php](includes/layout.php)); PNG/SVG/PDF se exportan desde JS.
 
 ## Comandos
@@ -37,6 +37,8 @@ php database/migrate_notas_usuario.php
 php database/migrate_pagos.php          # columna usuarios.id_cliente_conekta
 php database/migrate_planes.php         # quita planes.id_externo_mensual/anual (sin uso)
 php database/migrate_paginas_qr.php     # qr_codigos.tipo_contenido de ENUM a VARCHAR(30) (páginas de QR)
+php database/migrate_zona_horaria.php   # una vez: pasa los escaneos guardados en UTC a la hora de CDMX
+php database/actualizar_geoip.php       # cron mensual (día 3): descarga la base de ubicaciones de DB-IP a database/geoip/
 php database/vencer_suscripciones.php   # cron diario: cierra periodos vencidos y regresa a Gratis
 php database/create_admin.php "Nombre" correo@x.com "contraseña"   # crea un admin (o vía ADMIN_NAME/ADMIN_EMAIL/ADMIN_PASSWORD)
 ```
@@ -66,7 +68,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 | Carpeta | Qué hay |
 |---|---|
 | raíz | Páginas públicas: `index.php` (landing + generador), `login`, `registro`, `recuperar`, `restablecer`, `verificar`, `privacidad`, `terminos`, `r.php`, `tipo.php?t=` (página explicativa de cada tipo dinámico) y `ejemplo.php?t=` (su ejemplo con datos ficticios, dentro de un teléfono) |
-| [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar en 3 pasos: tipo, contenido y diseño del QR, con un teléfono de vista previa; `?tipo=` llega con ese tipo elegido), `vista-pagina` (POST: HTML de la vista previa en vivo), `estadisticas`, `csv` (masivo), `plan` |
+| [app/](app/) | Panel del cliente: `index` (Mis QR), `crear` (crear/editar en 3 pasos: tipo, contenido y diseño del QR, con un teléfono de vista previa; `?tipo=` llega con ese tipo elegido), `vista-pagina` (POST: HTML de la vista previa en vivo), `estadisticas` (más `estadisticas-csv`: exporta cada escaneo del periodo), `csv` (masivo), `plan` |
 | [admin/](admin/) | Panel admin: `index`, `usuarios`/`usuario`, `qrs` (moderación), `planes`, `pagos`, `correos`/`correo`/`correo-variables`/`correo-ver`, `legales`/`legal`, `configuracion` |
 | [auth/](auth/) | **Endpoints POST** (acciones): login, registro, logout, qr, qr-csv, pago, planes, usuarios, correos, legales, configuracion, recuperar, restablecer, verificar. Validan método, CSRF y permisos, luego `flash()` + `redirigir()` (PRG) |
 | [includes/](includes/) | Librerías de funciones con prefijo por módulo (ver abajo) |
@@ -89,11 +91,13 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
   - Las páginas guardan sus colores en `campos.estilo` (`primario`, `secundario`; paletas en `QR_PAGINA_PALETAS`, campo `pagina_estilo[...]`). Las guardadas antes usan el color del QR.
   - Modo borrador (`qr_pagina_borrador()`, `qr_pagina_vista_previa()`): arma la página aunque falten datos, para la vista previa. Las validaciones usan `qr_pagina_falta()` en lugar de lanzar directo. Los archivos aún sin subir llegan como URL `blob:` en `pg[tipo][vista_campo]`, solo en este modo.
   - También genera los `.vcf` y `.ics` y elige la tienda para Aplicaciones.
-- `qr_tipos_info.php`: textos de `tipo.php` por tipo (`qr_tipo_info()`) y su ejemplo (`qr_tipo_ejemplo_campos()`), que pasa por `qr_pagina_contenido()` como un QR real. Un tipo nuevo necesita sus textos y su ejemplo aquí (`QrTiposInfoTest` lo exige).
+- `qr_tipos_info.php`: textos de `tipo.php` por tipo (`qr_tipo_info()`), su ejemplo (`qr_tipo_ejemplo_campos()`) y estadísticas de ejemplo con el patrón típico del tipo (`qr_tipo_ejemplo_perfil()`, `qr_tipo_ejemplo_estadisticas()`, semilla fija), que pasa por `qr_pagina_contenido()` como un QR real. Un tipo nuevo necesita sus textos y su ejemplo aquí (`QrTiposInfoTest` lo exige).
 - `qr_paginas_form.php`: un `<fieldset data-panel-tipo data-panel-modo="dinamico">` por tipo en `app/crear.php`, con sus campos en secciones plegables (`qr_pagina_grupo()`, `<details class="acordeon">`), más la sección de colores `qr_pagina_grupo_diseno()`. El JS deshabilita los ocultos para que no se envíen. Las listas repetibles usan `<template data-lista-plantilla>` con los marcadores `__i__` y `__j__`.
 - `qr_pagina_vista.php`: `qr_pagina_mostrar($qr, $modo)`, la página que muestra `r.php` (`publico` o `vista_previa`) y el teléfono de `app/crear.php` (`telefono`, con `$qr['campos']` sin guardar).
   - `r.php?descargar=vcf|ics` sirve los archivos y no cuenta como escaneo.
   - `?vista_previa=1` (dueño o admin) muestra la página sin contar escaneo, aunque el QR esté pausado.
+- `geoip.php`: país, región y ciudad de quien escanea. Usa los encabezados de Cloudflare o la base local `database/geoip/ciudades.mmdb` (DB-IP City Lite, CC BY 4.0; la atribución va en Estadísticas) con un lector MMDB propio (`GeoIpLector`). La IP no se manda a nadie ni se guarda.
+- `estadisticas_vista.php`: piezas compartidas por Estadísticas y el ejemplo de `tipo.php`: `estadisticas_ubicacion()` y `estadisticas_mapa_calor()` (día de la semana × hora).
 - `qr_csv.php`: lectura/validación/escritura de CSV para la creación masiva.
 - `correo.php` + `smtp.php`: plantillas de correo desde BD con variables `{{var}}`, cliente SMTP propio (sin PHPMailer). Ver [docs/plantillas-de-correo.md](docs/plantillas-de-correo.md).
 - `tokens.php`, `verificacion.php`, `recuperacion.php`: tokens de un solo uso (se guarda solo el hash) para verificar el correo y recuperar la contraseña.
@@ -114,7 +118,7 @@ Autenticación: `App\Core\Auth` ([app/Core/Auth.php](app/Core/Auth.php)): `requi
 
 ## Estado actual
 
-**Funciona con BD real:** pagos con Stripe y Conekta (checkout, webhooks, cambio de plan, cancelación, portal, reembolsos totales), registro/login con límite de intentos, verificación de correo, recuperación de contraseña, crear/editar/pausar/eliminar QR estáticos y dinámicos (incluidas las páginas propias de los 18 tipos), límites por plan (incluida la retención de estadísticas por plan), redirección y registro de escaneos, estadísticas, creación masiva por CSV, panel admin (usuarios, notas, moderación de QR, planes con precios, límites y funciones, plantillas de correo, documentos legales, configuración de identidad, SMTP, tema y pagos), envío de correo por SMTP.
+**Funciona con BD real:** pagos con Stripe y Conekta (checkout, webhooks, cambio de plan, cancelación, portal, reembolsos totales), registro/login con límite de intentos, verificación de correo, recuperación de contraseña, crear/editar/pausar/eliminar QR estáticos y dinámicos (incluidas las páginas propias de los 19 tipos), límites por plan (incluida la retención de estadísticas por plan), redirección y registro de escaneos, estadísticas, creación masiva por CSV, panel admin (usuarios, notas, moderación de QR, planes con precios, límites y funciones, plantillas de correo, documentos legales, configuración de identidad, SMTP, tema y pagos), envío de correo por SMTP.
 
 **Pendiente o simulado:**
 - **Pagos:** facturación CFDI (datos fiscales y "Descargar factura" en `app/plan.php`) sigue simulada (`data-simular*`). Las claves de pasarela se guardan sin cifrar en `configuracion`.

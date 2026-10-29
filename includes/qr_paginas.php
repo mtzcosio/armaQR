@@ -27,6 +27,8 @@ const QR_PAGINA_MAX_IMAGENES = 10;
 const QR_PAGINA_MAX_ENLACES = 20;
 const QR_PAGINA_MAX_SECCIONES = 20;
 const QR_PAGINA_MAX_PLATILLOS = 150;
+const QR_PAGINA_MAX_DIAS = 10;
+const QR_PAGINA_MAX_ACTIVIDADES = 100;
 
 /** Redes que se pueden enlazar en Redes sociales y Empresa: clave => nombre. */
 const QR_PAGINA_REDES = ['facebook' => 'Facebook', 'instagram' => 'Instagram', 'tiktok' => 'TikTok', 'x' => 'X (Twitter)', 'youtube' => 'YouTube', 'linkedin' => 'LinkedIn'];
@@ -169,6 +171,22 @@ function qr_pagina_fecha(string $valor, string $etiqueta, bool $conHora, bool $o
     }
     qr_pagina_falta("Revisa {$etiqueta}: la fecha no es válida.");
     return '';
+}
+
+/** Hora 'HH:MM' de un <input type="time"> (acepta segundos y los quita). */
+function qr_pagina_hora(string $valor, string $etiqueta, bool $obligatoria = false): string
+{
+    if ($valor === '') {
+        if ($obligatoria) {
+            qr_pagina_falta("Escribe {$etiqueta}.");
+        }
+        return '';
+    }
+    if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $valor)) {
+        qr_pagina_falta("Revisa {$etiqueta}: la hora no es válida.");
+        return '';
+    }
+    return substr($valor, 0, 5);
 }
 
 /** URL para incrustar un video de YouTube o Vimeo, o null si no es de esos sitios. */
@@ -462,6 +480,49 @@ function qr_pagina_campos(string $tipo, array $v, array $subidos, array $anterio
             }
             if ($c['fin'] !== '' && $c['fin'] < $c['inicio']) {
                 qr_pagina_falta('El evento no puede terminar antes de empezar.');
+            }
+            $c['imagen'] = $archivo('imagen', 'la imagen', 'imagen', false);
+            return $c;
+
+        case 'itinerario':
+            $c = ['titulo' => $t('titulo', 120), 'descripcion' => $t('descripcion', 1500),
+                  'lugar' => $t('lugar', 120), 'direccion' => $t('direccion', 250), 'dias' => []];
+            if ($c['titulo'] === '') {
+                qr_pagina_falta('Escribe el nombre del evento.');
+            }
+            $actividades = 0;
+            foreach (array_slice(is_array($v['dias'] ?? null) ? $v['dias'] : [], 0, QR_PAGINA_MAX_DIAS) as $d) {
+                if (!is_array($d)) continue;
+                $dia = ['nombre' => qr_pagina_texto($d, 'nombre', 80),
+                        'fecha' => qr_pagina_fecha(qr_pagina_texto($d, 'fecha', 10), 'la fecha de cada día', false),
+                        'actividades' => []];
+                foreach (is_array($d['actividades'] ?? null) ? $d['actividades'] : [] as $a) {
+                    if (!is_array($a)) continue;
+                    $actividad = ['hora' => qr_pagina_texto($a, 'hora', 8), 'fin' => qr_pagina_texto($a, 'fin', 8), 'titulo' => qr_pagina_texto($a, 'titulo', 120),
+                                  'descripcion' => qr_pagina_texto($a, 'descripcion', 300), 'lugar' => qr_pagina_texto($a, 'lugar', 120)];
+                    if (implode('', $actividad) === '') continue;
+                    $nombre = $actividad['titulo'] !== '' ? " «{$actividad['titulo']}»" : '';
+                    if ($actividad['titulo'] === '') {
+                        qr_pagina_falta('Cada actividad del itinerario necesita un título.');
+                    }
+                    $actividad['hora'] = qr_pagina_hora($actividad['hora'], "la hora de la actividad{$nombre}", true);
+                    // Una hora de fin menor que la de inicio termina después de medianoche (fiesta de 21:00 a 03:00).
+                    $actividad['fin'] = qr_pagina_hora($actividad['fin'], "la hora de fin de la actividad{$nombre}");
+                    if ($actividad['fin'] !== '' && $actividad['fin'] === $actividad['hora']) {
+                        qr_pagina_falta("La actividad{$nombre} debe terminar después de empezar.");
+                    }
+                    $dia['actividades'][] = $actividad;
+                    $actividades++;
+                }
+                // Se respeta el orden capturado: una hora menor que la anterior es de madrugada (después de medianoche).
+                if (!$dia['actividades'] && $dia['nombre'] === '' && $dia['fecha'] === '') continue;
+                $c['dias'][] = $dia;
+            }
+            if ($actividades === 0) {
+                qr_pagina_falta('Agrega al menos una actividad al itinerario.');
+            }
+            if ($actividades > QR_PAGINA_MAX_ACTIVIDADES) {
+                qr_pagina_falta('El itinerario admite hasta ' . QR_PAGINA_MAX_ACTIVIDADES . ' actividades.');
             }
             $c['imagen'] = $archivo('imagen', 'la imagen', 'imagen', false);
             return $c;

@@ -77,6 +77,13 @@ function qr_tipo_info(string $tipo): ?array
             'usos' => ['Carteles y volantes', 'Invitaciones de boda o XV años', 'Conferencias y talleres', 'Inauguraciones'],
             'notas' => ['El archivo de calendario funciona en iPhone, Android, Google Calendar y Outlook.'],
         ],
+        'itinerario' => [
+            'titulo' => 'Código QR para el itinerario de tu evento',
+            'intro' => 'Comparte el programa de tu boda, congreso, viaje o XV años hora por hora: qué pasa, a qué hora y dónde. Los invitados lo consultan desde su celular, y si algo se mueve, lo cambias y todos ven el horario nuevo sin reimprimir.',
+            'incluye' => ['Hasta ' . QR_PAGINA_MAX_DIAS . ' días con su nombre y fecha', 'Actividades con hora de inicio y fin, detalle y lugar', 'Marca la actividad que está en curso el día del evento', 'Imagen, descripción y lugar con mapa'],
+            'usos' => ['Bodas y XV años', 'Congresos, conferencias y talleres', 'Viajes y excursiones en grupo', 'Retiros, torneos y festivales'],
+            'notas' => ['Captura las actividades en orden: las que pasan de medianoche, como la salida de los camiones a las 02:00, se muestran al final del día.', 'Para marcar la actividad en curso, el día necesita su fecha. Si el evento dura un solo día, el nombre del día es opcional.'],
+        ],
         'empresa' => [
             'titulo' => 'Código QR con la información de tu negocio',
             'intro' => 'Una página con lo esencial de tu negocio: a qué se dedica, horario, dirección, teléfono, correo y redes sociales. Ideal para que tus clientes te encuentren y te contacten en un toque.',
@@ -193,6 +200,21 @@ function qr_tipo_ejemplo_datos(string $tipo): array
             'lugar' => 'Foro Luna', 'direccion' => 'Av. Juárez 10, Centro, CDMX',
             'boton_texto' => 'Comprar boletos', 'boton_url' => 'https://www.example.com/boletos']], 'pagina_estilo' => $paleta(5)],
             ['imagen' => $a('portada-evento.svg')]],
+        'itinerario' => [['pg' => ['itinerario' => ['titulo' => 'Boda de Ana y Luis', 'descripcion' => 'Gracias por acompañarnos. Aquí tienes el programa para que no te pierdas nada.',
+            'lugar' => 'Hacienda San Gabriel', 'direccion' => 'Carretera a Tepoztlán km 5, Morelos',
+            'dias' => [
+                ['nombre' => 'La boda', 'fecha' => $sabado->format('Y-m-d'), 'actividades' => [
+                    ['hora' => '17:00', 'fin' => '18:00', 'titulo' => 'Ceremonia religiosa', 'descripcion' => 'Te pedimos llegar 15 minutos antes.', 'lugar' => 'Capilla de la hacienda'],
+                    ['hora' => '18:00', 'fin' => '19:30', 'titulo' => 'Cóctel de bienvenida', 'descripcion' => 'Mezcal, aguas frescas y botanas.', 'lugar' => 'Jardín principal'],
+                    ['hora' => '19:30', 'fin' => '', 'titulo' => 'Cena', 'descripcion' => 'Menú de tres tiempos.', 'lugar' => 'Salón de los arcos'],
+                    ['hora' => '21:00', 'fin' => '', 'titulo' => 'Primer baile y fiesta', 'descripcion' => '', 'lugar' => 'Pista central'],
+                    ['hora' => '02:00', 'fin' => '', 'titulo' => 'Camiones de regreso', 'descripcion' => 'Salen hacia Cuernavaca y la CDMX.', 'lugar' => 'Estacionamiento'],
+                ]],
+                ['nombre' => 'Tornaboda', 'fecha' => $sabado->modify('+1 day')->format('Y-m-d'), 'actividades' => [
+                    ['hora' => '11:00', 'fin' => '14:00', 'titulo' => 'Chilaquiles y alberca', 'descripcion' => 'Trae traje de baño.', 'lugar' => 'Terraza'],
+                ]],
+            ]]], 'pagina_estilo' => $paleta(3)],
+            ['imagen' => $a('portada-boda.svg')]],
         'empresa' => [['pg' => ['empresa' => ['nombre' => 'Ferretería El Clavo', 'descripcion' => 'Herramienta, material eléctrico y plomería desde 1985. Hacemos duplicado de llaves.',
             'telefono' => '33 3123 4567', 'email' => 'ventas@example.com', 'web' => 'https://www.example.com',
             'direccion' => 'Av. Juárez 450, Centro, Guadalajara, Jal.', 'horario' => "Lunes a viernes de 8:00 a 19:00\nSábado de 9:00 a 14:00",
@@ -223,4 +245,116 @@ function qr_tipo_ejemplo_campos(string $tipo): array
     [$post, $archivos] = qr_tipo_ejemplo_datos($tipo);
     $contenido = qr_pagina_contenido($tipo, $post, [], $archivos);
     return qr_tipo_usa_url($tipo) ? ['destino' => $contenido['texto']] : $contenido['campos'];
+}
+
+/* ---------------------------------------------------------------------
+ * Estadísticas de ejemplo (sección "Así se ven tus estadísticas" de tipo.php)
+ * ------------------------------------------------------------------- */
+
+/**
+ * Cómo se escanea cada tipo, para que el ejemplo sea creíble:
+ *  base: escaneos en un día normal · finde: multiplicador de sábado y domingo
+ *  forma: 'estable' | 'evento' (sube hasta el día del evento y luego cae) | 'campana' (arranca fuerte y se apaga)
+ *  picos: [hora => peso] · movil: % de celulares · lectura: qué le dicen al cliente
+ */
+function qr_tipo_ejemplo_perfil(string $tipo): array
+{
+    $perfil = fn(int $base, float $finde, string $forma, array $picos, int $movil, string $lectura) =>
+        compact('base', 'finde', 'forma', 'picos', 'movil', 'lectura');
+    return match ($tipo) {
+        'menu' => $perfil(42, 1.6, 'estable', [14 => 1.0, 21 => 0.9], 96, 'Las horas pico coinciden con la comida y la cena: ahí conviene destacar el platillo del día.'),
+        'wifi' => $perfil(30, 1.3, 'estable', [10 => 0.7, 13 => 1.0, 18 => 0.8], 92, 'Cada escaneo es un cliente sentado en tu local: te dice cuánta gente se queda.'),
+        'cupon' => $perfil(55, 1.2, 'campana', [12 => 0.8, 19 => 1.0], 95, 'La promoción arranca fuerte y se apaga: cuando bajen los escaneos, cambia el cupón sin reimprimir.'),
+        'evento' => $perfil(18, 1.1, 'evento', [20 => 1.0, 13 => 0.5], 94, 'Los escaneos suben conforme se acerca el evento: así sabes si la promoción está funcionando.'),
+        'itinerario' => $perfil(6, 1.0, 'evento', [17 => 1.0, 21 => 0.8, 11 => 0.4], 98, 'El día del evento los invitados lo consultan una y otra vez para saber qué sigue.'),
+        'vcard' => $perfil(5, 0.4, 'estable', [10 => 1.0, 17 => 0.7], 90, 'Cada escaneo es alguien que guardó o consultó tu contacto después de conocerte.'),
+        'empresa' => $perfil(14, 0.8, 'estable', [11 => 1.0, 17 => 0.8], 88, 'Te dice a qué horas buscan tu horario y tu teléfono: ajusta tu atención a esos momentos.'),
+        'pdf' => $perfil(16, 0.6, 'estable', [10 => 1.0, 16 => 0.8], 78, 'Muchos lo abren en la computadora: tu catálogo se consulta también en la oficina.'),
+        'imagenes' => $perfil(12, 1.5, 'estable', [12 => 0.8, 19 => 1.0], 93, 'Con un QR por propiedad o producto comparas cuál genera más interés.'),
+        'video' => $perfil(15, 1.2, 'estable', [13 => 0.7, 20 => 1.0], 91, 'Te dice cuántas personas vieron tu video desde el impreso, no solo desde redes.'),
+        'mp3' => $perfil(9, 1.4, 'estable', [8 => 0.7, 19 => 1.0], 97, 'Las audioguías se usan en horario de visita; los podcasts, de camino a casa.'),
+        'apps' => $perfil(22, 1.1, 'estable', [13 => 0.8, 20 => 1.0], 99, 'Compara cuántos llegan desde iPhone y cuántos desde Android antes de invertir en una tienda.'),
+        'whatsapp' => $perfil(25, 1.2, 'estable', [12 => 0.9, 19 => 1.0], 99, 'Cada escaneo es un cliente a punto de escribirte: cruza las horas pico con tu atención.'),
+        'enlaces', 'redes', 'facebook', 'instagram' => $perfil(20, 1.3, 'estable', [13 => 0.8, 21 => 1.0], 95, 'Te dice cuántas personas llegan a tus redes desde el mundo físico.'),
+        'email' => $perfil(4, 0.3, 'estable', [10 => 1.0, 16 => 0.7], 85, 'Pocos escaneos, pero cada uno es una solicitud con intención de compra.'),
+        default => $perfil(20, 1.1, 'estable', [13 => 1.0, 19 => 0.8], 90, 'Ves cuándo y desde qué equipo escanean tu código.'),
+    };
+}
+
+/**
+ * Estadísticas de ejemplo de un tipo en los últimos $dias días: siempre las mismas para el mismo
+ * tipo y día (semilla fija), con la misma forma que las de app/estadisticas.php.
+ * Devuelve serie [fecha => n], horas[24], dispositivo, sistema (%), total, unicos, promedio, mejor y lectura.
+ */
+function qr_tipo_ejemplo_estadisticas(string $tipo, int $dias = 30, ?DateTimeImmutable $hoy = null): array
+{
+    $p = qr_tipo_ejemplo_perfil($tipo);
+    $hoy ??= new DateTimeImmutable('today');
+    mt_srand(crc32($tipo));
+    $ruido = fn() => 0.8 + mt_rand(0, 400) / 1000; // 0.8 a 1.2
+
+    $serie = [];
+    for ($i = $dias - 1; $i >= 0; $i--) {
+        $fecha = $hoy->modify("-{$i} days");
+        $dia = $dias - 1 - $i; // 0 = el más antiguo
+        $factor = match ($p['forma']) {
+            'evento' => $dia <= $dias - 5 ? 0.3 + 1.7 * ($dia / ($dias - 5)) ** 2 : ($dia === $dias - 4 ? 6.0 : 0.6),
+            'campana' => 0.35 + 1.9 * exp(-$dia / 9),
+            default => 1.0,
+        };
+        $finde = in_array((int) $fecha->format('N'), [6, 7], true) ? $p['finde'] : 1.0;
+        $serie[$fecha->format('Y-m-d')] = max(0, (int) round($p['base'] * $factor * $finde * $ruido()));
+    }
+
+    // Horas: campanas alrededor de cada pico, casi nada de madrugada.
+    $horas = [];
+    for ($h = 0; $h < 24; $h++) {
+        $peso = 0.02;
+        foreach ($p['picos'] as $centro => $w) {
+            $peso += $w * exp(-(($h - $centro) ** 2) / 6);
+        }
+        $horas[] = $peso;
+    }
+    $total = array_sum($serie);
+    $sumaHoras = array_sum($horas);
+    $pesos = array_map(fn($w) => $w / $sumaHoras, $horas);
+    $horas = array_map(fn($w) => (int) round($total * $w), $pesos);
+
+    // Mapa de calor [día 0 = lunes][hora]: los escaneos de cada día repartidos según las horas pico.
+    $mapa = array_fill(0, 7, array_fill(0, 24, 0.0));
+    foreach ($serie as $fecha => $n) {
+        $d = (int) date('N', strtotime($fecha)) - 1;
+        foreach ($pesos as $h => $w) {
+            $mapa[$d][$h] += $n * $w;
+        }
+    }
+    $mapa = array_map(fn($fila) => array_map(fn($x) => (int) round($x), $fila), $mapa);
+
+    // Ubicación: casi todo México, repartido entre las ciudades más grandes.
+    $sinUbicacion = (int) round($total * 0.03);
+    $conUbicacion = $total - $sinUbicacion;
+    $paises = ['MX' => (int) round($conUbicacion * 0.93), 'US' => (int) round($conUbicacion * 0.05)];
+    $paises['Otros'] = max(0, $conUbicacion - array_sum($paises));
+    $ciudades = [];
+    foreach ([['Ciudad de México', 'Ciudad de México', 0.34], ['Guadalajara', 'Jalisco', 0.14], ['Monterrey', 'Nuevo León', 0.11],
+              ['Puebla', 'Puebla', 0.07], ['Querétaro', 'Querétaro', 0.05], ['Mérida', 'Yucatán', 0.04]] as [$ciudad, $region, $parte]) {
+        $ciudades[] = ['ciudad' => $ciudad, 'region' => $region, 'pais' => 'MX', 'n' => (int) round($paises['MX'] * $parte * $ruido())];
+    }
+    usort($ciudades, fn($a, $b) => $b['n'] <=> $a['n']);
+
+    $tablet = max(1, (int) round((100 - $p['movil']) / 3));
+    $dispositivo = ['Móvil' => $p['movil'], 'Escritorio' => max(0, 100 - $p['movil'] - $tablet), 'Tablet' => $tablet];
+    $android = 52 + mt_rand(-6, 6);
+    $iphone = min(100 - $android, 41 + mt_rand(-5, 5));
+    $sistema = ['Android' => $android, 'iOS' => $iphone, 'Otros' => 100 - $android - $iphone];
+    mt_srand();
+
+    $mejor = (string) array_search(max($serie), $serie, true);
+    return [
+        'serie' => $serie, 'horas' => $horas, 'dispositivo' => $dispositivo, 'sistema' => $sistema,
+        'total' => $total, 'unicos' => (int) round($total * 0.72), 'promedio' => (int) round($total / $dias),
+        'mejor' => $mejor, 'mejor_n' => $serie[$mejor], 'hora_pico' => (int) array_search(max($horas), $horas, true),
+        'mapa' => $mapa, 'paises' => $paises, 'ciudades' => $ciudades, 'sin_ubicacion' => $sinUbicacion,
+        'lectura' => $p['lectura'],
+    ];
 }

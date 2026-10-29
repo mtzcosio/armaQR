@@ -16,6 +16,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/datos.php';
+require_once __DIR__ . '/geoip.php';
 
 // Tipos de contenido: QR_TIPOS (estáticos) y QR_TIPOS_DINAMICOS en includes/qr_tipos.php.
 const QR_ALFABETO = 'abcdefghjkmnpqrstuvwxyz23456789'; // sin 0/o, 1/l/i: no se confunden al leerlos
@@ -398,14 +399,16 @@ function qr_registrar_escaneo(int $qrId, array $servidor): void
     $agente = qr_detectar_agente($ua);
     $ip = (string) ($servidor['REMOTE_ADDR'] ?? '');
     $idioma = preg_match('/^([a-zA-Z]{2,3}(?:-[a-zA-Z]{2})?)/', (string) ($servidor['HTTP_ACCEPT_LANGUAGE'] ?? ''), $m) ? $m[1] : null;
-    $pais = preg_match('/^[A-Z]{2}$/', (string) ($servidor['HTTP_CF_IPCOUNTRY'] ?? '')) ? $servidor['HTTP_CF_IPCOUNTRY'] : null;
+    // País, región y ciudad aproximados (Cloudflare o la base local de DB-IP); la IP no se guarda.
+    $ubicacion = geoip_ubicacion($servidor);
 
     $pdo = datos_pdo();
     $pdo->prepare(
-        'INSERT INTO qr_escaneos (qr_id, ip_hash, pais, dispositivo, sistema_operativo, navegador, idioma, referer)
-         VALUES (:qr, :ip, :pais, :disp, :so, :nav, :idioma, :ref)'
+        'INSERT INTO qr_escaneos (qr_id, ip_hash, pais, region, ciudad, dispositivo, sistema_operativo, navegador, idioma, referer)
+         VALUES (:qr, :ip, :pais, :region, :ciudad, :disp, :so, :nav, :idioma, :ref)'
     )->execute([
-        ':qr' => $qrId, ':ip' => $ip !== '' ? hash('sha256', $ip . qr_sal()) : null, ':pais' => $pais,
+        ':qr' => $qrId, ':ip' => $ip !== '' ? hash('sha256', $ip . qr_sal()) : null,
+        ':pais' => $ubicacion['pais'], ':region' => $ubicacion['region'], ':ciudad' => $ubicacion['ciudad'],
         ':disp' => $agente['dispositivo'], ':so' => $agente['sistema_operativo'], ':nav' => $agente['navegador'],
         ':idioma' => $idioma, ':ref' => mb_substr((string) ($servidor['HTTP_REFERER'] ?? ''), 0, 500) ?: null,
     ]);

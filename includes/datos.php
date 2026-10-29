@@ -464,21 +464,51 @@ function datos_desgloses(int $dias, ?int $usuarioId = null, ?int $qrId = null): 
 
     $sistema = $porcentajes(datos_consulta("SELECT COALESCE(e.sistema_operativo, 'Otro') AS k, COUNT(*) AS n {$base} GROUP BY k ORDER BY n DESC LIMIT 5", $params));
 
+    // Ubicación: los 6 países y las 8 ciudades con más escaneos; lo demás se suma en "Otros".
+    $paises = [];
+    foreach (datos_consulta("SELECT e.pais AS k, COUNT(*) AS n {$base} AND e.pais IS NOT NULL GROUP BY e.pais ORDER BY n DESC", $params) as $i => $f) {
+        $clave = $i < 6 ? $f['k'] : 'Otros';
+        $paises[$clave] = ($paises[$clave] ?? 0) + (int) $f['n'];
+    }
     $ciudades = [];
-    foreach (datos_consulta("SELECT COALESCE(e.ciudad, 'Desconocida') AS k, COUNT(*) AS n {$base} GROUP BY k ORDER BY n DESC", $params) as $i => $f) {
-        if ($i < 5) {
-            $ciudades[$f['k']] = (int) $f['n'];
-        } else {
-            $ciudades['Otras'] = ($ciudades['Otras'] ?? 0) + (int) $f['n'];
-        }
+    foreach (datos_consulta(
+        "SELECT e.ciudad, e.region, e.pais, COUNT(*) AS n {$base} AND e.ciudad IS NOT NULL
+         GROUP BY e.ciudad, e.region, e.pais ORDER BY n DESC LIMIT 8",
+        $params
+    ) as $f) {
+        $ciudades[] = ['ciudad' => $f['ciudad'], 'region' => $f['region'], 'pais' => $f['pais'], 'n' => (int) $f['n']];
     }
+    $sinUbicacion = (int) (datos_consulta("SELECT COUNT(*) AS n {$base} AND e.pais IS NULL", $params)[0]['n'] ?? 0);
 
+    // Mapa de calor: [día de la semana 0 = lunes … 6 = domingo][hora 0-23].
+    $mapa = array_fill(0, 7, array_fill(0, 24, 0));
     $horas = array_fill(0, 24, 0);
-    foreach (datos_consulta("SELECT HOUR(e.fecha_escaneo) AS k, COUNT(*) AS n {$base} GROUP BY k", $params) as $f) {
-        $horas[(int) $f['k']] = (int) $f['n'];
+    foreach (datos_consulta("SELECT WEEKDAY(e.fecha_escaneo) AS d, HOUR(e.fecha_escaneo) AS h, COUNT(*) AS n {$base} GROUP BY d, h", $params) as $f) {
+        $mapa[(int) $f['d']][(int) $f['h']] = (int) $f['n'];
+        $horas[(int) $f['h']] += (int) $f['n'];
     }
 
-    return ['dispositivo' => $dispositivoLegible, 'sistema' => $sistema, 'ciudades' => $ciudades, 'horas' => $horas];
+    return ['dispositivo' => $dispositivoLegible, 'sistema' => $sistema, 'paises' => $paises, 'ciudades' => $ciudades,
+            'sin_ubicacion' => $sinUbicacion, 'mapa' => $mapa, 'horas' => $horas];
+}
+
+/**
+ * Escaneos uno por uno para exportar a CSV (los más recientes primero, hasta $limite).
+ * Nunca incluye el hash de la IP.
+ */
+function datos_escaneos_detalle(int $dias, int $usuarioId, ?int $qrId = null, int $limite = 100000): array
+{
+    [$desde, $hasta] = datos_rango($dias);
+    [$filtro, $params] = datos_filtro_escaneos($usuarioId, $qrId);
+    return datos_consulta(
+        "SELECT e.fecha_escaneo, q.nombre AS qr, q.codigo_corto, q.tipo_contenido, e.pais, e.region, e.ciudad,
+                e.dispositivo, e.sistema_operativo, e.navegador, e.idioma, e.referer
+         FROM qr_escaneos e JOIN qr_codigos q ON q.id = e.qr_id
+         WHERE e.fecha_escaneo >= :desde AND e.fecha_escaneo < :hasta{$filtro}
+         ORDER BY e.fecha_escaneo DESC, e.id DESC
+         LIMIT " . max(1, $limite),
+        $params + [':desde' => $desde, ':hasta' => $hasta]
+    );
 }
 
 /** Registros de usuarios por día. */

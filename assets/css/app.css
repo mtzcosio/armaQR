@@ -759,6 +759,21 @@ fieldset.sin-borde:disabled { opacity: .6; }
 .micrositio-menu li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px dashed var(--linea); }
 .micrositio-menu p { margin: 2px 0 0; font-size: 14px; color: var(--gris); }
 .micrositio-precio { font-weight: 700; white-space: nowrap; }
+.micrositio-dia-fecha { margin: 0 0 4px; font-size: 13.5px; color: var(--gris); }
+.micrositio-itinerario { list-style: none; margin: 8px 0 0; padding: 0; display: grid; }
+.micrositio-itinerario li { position: relative; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 14px; padding: 0 0 18px; }
+.micrositio-itinerario li::before { content: ""; position: absolute; left: 66px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--blanco); border: 2px solid var(--acento); }
+.micrositio-itinerario li::after { content: ""; position: absolute; left: 71px; top: 20px; bottom: 0; width: 2px; background: var(--linea); }
+.micrositio-itinerario li:last-child { padding-bottom: 4px; }
+.micrositio-itinerario li:last-child::after { display: none; }
+.micrositio-itinerario li > div { padding-left: 20px; }
+.micrositio-itinerario p { margin: 2px 0 0; font-size: 14px; color: var(--gris); }
+.micrositio-hora { display: grid; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.micrositio-hora small { font-weight: 500; font-size: 12.5px; color: var(--gris); }
+.micrositio-lugar { display: flex; align-items: center; gap: 4px; }
+.micrositio-itinerario li.ahora::before { background: var(--acento); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 25%, transparent); }
+.micrositio-itinerario li.ahora strong { color: var(--acento); }
+.micrositio-ahora { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: var(--acento); color: var(--sobre-acento-pagina); font-size: 11.5px; font-weight: 700; vertical-align: 2px; }
 .micrositio-codigo { display: grid; gap: 8px; justify-items: center; padding: 18px; border: 2px dashed var(--acento); border-radius: var(--r); text-align: center; }
 .micrositio-codigo span { font-size: 13px; color: var(--gris); }
 .micrositio-codigo strong { font-family: ui-monospace, Consolas, monospace; font-size: 26px; letter-spacing: .08em; overflow-wrap: anywhere; }
@@ -871,3 +886,27 @@ fieldset.sin-borde:disabled { opacity: .6; }
   .tipo-heroe-rejilla, .tipo-columnas { grid-template-columns: 1fr; }
   .tipo-ejemplo .telefono { width: 280px; height: 560px; }
 }
+.estadisticas-ejemplo { position: relative; display: grid; gap: 22px; }
+.estadisticas-ejemplo .caja-cabeza h3 { font-size: 17px; }
+.estadisticas-ejemplo-sello { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--ambar-claro); color: var(--ambar); font-size: 13px; font-weight: 700; }
+.estadisticas-ejemplo-lectura { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 16px 18px; border-radius: var(--r); background: var(--rosa-claro); color: var(--rosa-oscuro); font-weight: 600; }
+.estadisticas-ejemplo-lectura .ico { flex: none; margin-top: 2px; }
+
+/* ---------- Estadísticas: ubicación y mapa de calor (includes/estadisticas_vista.php) ---------- */
+.ubicacion-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 22px; }
+.ubicacion-titulo { margin-bottom: 12px; font-size: 14px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .04em; }
+.ubicacion-nota { margin-top: 16px; }
+.ubicacion-nota a { color: inherit; }
+.mapa-calor-contenedor { overflow-x: auto; }
+.mapa-calor { width: 100%; min-width: 620px; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
+.mapa-calor th { font-size: 11.5px; font-weight: 600; color: var(--gris); text-align: center; padding: 0; }
+.mapa-calor thead td { width: 40px; }
+.mapa-calor tbody th { text-align: left; padding-right: 6px; }
+.mapa-calor abbr { text-decoration: none; }
+.mapa-calor-tenue { opacity: .45; }
+.mapa-calor td, .mapa-calor-escala i { --p: 0%; height: 22px; border-radius: 4px; background: color-mix(in srgb, var(--rosa) var(--p), var(--superficie-alterna)); }
+.mapa-calor td:hover { outline: 2px solid var(--tinta); outline-offset: -1px; }
+.mapa-calor-pie { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.mapa-calor-pie p { margin: 0; }
+.mapa-calor-escala { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--gris); }
+.mapa-calor-escala i { display: inline-block; width: 16px; height: 12px; border-radius: 3px; }

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/estadisticas_vista.php';
 
 $usuario   = datos_usuario_actual();
 $plan      = $usuario['plan_datos'];
@@ -35,8 +36,13 @@ if ($esPago) {
     $des      = [
         'dispositivo' => ['Móvil' => 82, 'Tablet' => 6, 'Escritorio' => 12],
         'sistema'     => ['Android' => 58, 'iOS' => 38, 'Windows' => 4],
-        'ciudades'    => ['Ciudad de México' => 120, 'Guadalajara' => 64, 'Monterrey' => 41, 'Puebla' => 18],
-        'horas'       => array_map(fn($h) => (int) round(12 * exp(-(($h - 14) ** 2) / 18)), range(0, 23)),
+        'paises'      => ['MX' => 412, 'US' => 21, 'CO' => 6],
+        'ciudades'    => [['ciudad' => 'Ciudad de México', 'region' => 'Ciudad de México', 'pais' => 'MX', 'n' => 160],
+                          ['ciudad' => 'Guadalajara', 'region' => 'Jalisco', 'pais' => 'MX', 'n' => 74],
+                          ['ciudad' => 'Monterrey', 'region' => 'Nuevo León', 'pais' => 'MX', 'n' => 51],
+                          ['ciudad' => 'Puebla', 'region' => 'Puebla', 'pais' => 'MX', 'n' => 28]],
+        'sin_ubicacion' => 0,
+        'mapa'        => array_map(fn($d) => array_map(fn($h) => (int) round(($d >= 5 ? 9 : 6) * exp(-(($h - 14) ** 2) / 14) + 4 * exp(-(($h - 20) ** 2) / 6)), range(0, 23)), range(0, 6)),
     ];
 }
 $total  = array_sum($serie);
@@ -49,8 +55,6 @@ $grafLinea = ['tipo' => 'line', 'etiquetas' => $etiquetas, 'series' => array_val
     $conAnterior ? ['nombre' => 'Periodo anterior', 'datos' => array_values($anterior)] : null,
 ]))];
 $grafDisp  = ['tipo' => 'doughnut', 'etiquetas' => array_keys($des['dispositivo']), 'series' => [['nombre' => 'Dispositivo', 'datos' => array_values($des['dispositivo'])]]];
-$grafHoras = ['tipo' => 'bar', 'etiquetas' => array_map(fn($h) => $h . 'h', range(0, 23)), 'series' => [['nombre' => 'Escaneos', 'datos' => $des['horas']]]];
-$maxCiudad = max([1, ...array_values($des['ciudades'])]);
 
 $parametros = fn(array $extra) => array_filter(array_merge(['qr' => $qrId ?: null, 'dias' => $dias], $extra));
 
@@ -77,6 +81,9 @@ pagina_inicio('Estadísticas', 'app', 'estadisticas');
         <a href="<?= url_app('estadisticas.php', $parametros(['dias' => $d])) ?>" class="<?= $d === $dias ? 'activo' : '' ?>"><?= $txt ?></a>
       <?php endforeach; ?>
     </nav>
+    <?php if ($esPago): ?>
+      <a class="boton boton-fantasma" href="<?= url_app('estadisticas-csv.php', $parametros([])) ?>" download><?= icono('descargar', 17) ?> Exportar CSV</a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -86,7 +93,7 @@ pagina_inicio('Estadísticas', 'app', 'estadisticas');
       <div class="caja">
         <?= icono('grafica', 28) ?>
         <h2>Descubre quién escanea tus QR</h2>
-        <p>Con el plan Pro ves escaneos por día, hora y tipo de celular de cada código dinámico.</p>
+        <p>Con el plan Pro ves escaneos por día y hora, ciudad y tipo de celular de cada código dinámico, y los exportas a CSV.</p>
         <a class="boton boton-principal" href="<?= url_app('plan.php') ?>">Pasar a Pro</a>
       </div>
     </div>
@@ -105,18 +112,15 @@ pagina_inicio('Estadísticas', 'app', 'estadisticas');
       <div class="caja-cuerpo"><div class="grafica"><canvas data-grafica='<?= e(json_encode($grafLinea)) ?>' aria-label="Gráfica de escaneos por día" role="img"></canvas></div></div>
     </section>
 
+    <section class="caja">
+      <div class="caja-cabeza"><div><h2>Día y hora</h2><p>Cuándo escanean tus QR: úsalo para saber cuándo lanzar una promoción</p></div></div>
+      <div class="caja-cuerpo"><?= estadisticas_mapa_calor($des['mapa']) ?></div>
+    </section>
+
     <div class="rejilla-mitad">
       <section class="caja">
-        <div class="caja-cabeza"><h2>¿Desde dónde lo escanean?</h2></div>
-        <div class="caja-cuerpo barras-h">
-          <?php if (!$des['ciudades']): ?><p class="texto-gris">Aún no hay escaneos en este periodo.</p><?php endif; ?>
-          <?php foreach ($des['ciudades'] as $ciudad => $n): ?>
-            <div class="barra-h">
-              <div class="barra-h-cabeza"><span><?= e($ciudad) ?></span><span><?= numero($n) ?></span></div>
-              <div class="medidor <?= $n === $maxCiudad ? 'rosa' : '' ?>"><i style="width:<?= round($n / $maxCiudad * 100) ?>%"></i></div>
-            </div>
-          <?php endforeach; ?>
-        </div>
+        <div class="caja-cabeza"><div><h2>¿Desde dónde lo escanean?</h2><p>País y ciudad aproximados</p></div></div>
+        <div class="caja-cuerpo"><?= estadisticas_ubicacion($des) ?></div>
       </section>
       <section class="caja">
         <div class="caja-cabeza"><h2>Dispositivo</h2></div>
@@ -126,11 +130,6 @@ pagina_inicio('Estadísticas', 'app', 'estadisticas');
         </div>
       </section>
     </div>
-
-    <section class="caja">
-      <div class="caja-cabeza"><div><h2>Hora del día</h2><p>Úsalo para saber cuándo lanzar una promoción</p></div></div>
-      <div class="caja-cuerpo"><div class="grafica grafica-chica"><canvas data-grafica='<?= e(json_encode($grafHoras)) ?>' aria-label="Escaneos por hora" role="img"></canvas></div></div>
-    </section>
 
     <?php if ($esPago && !$qrSel && $dinamicos): ?>
     <section class="caja">

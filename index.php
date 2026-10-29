@@ -113,7 +113,7 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
           <ul class="lista-check">
             <li><?= icono('check') ?> Cambias el contenido sin reimprimir</li>
             <li><?= icono('check') ?> Muestra tu menú, PDF, cupón o contacto en una página con tus colores</li>
-            <li><?= icono('check') ?> Ves escaneos por día, hora y dispositivo</li>
+            <li><?= icono('check') ?> Ves escaneos por día, hora, ciudad y dispositivo, y los exportas a CSV</li>
             <li><?= icono('check') ?> Lo pausas cuando termina una promoción</li>
             <li><?= icono('check') ?> Incluido desde el plan Pro</li>
           </ul>
@@ -206,7 +206,7 @@ pagina_inicio('Genera códigos QR gratis', 'publico', '', [],
         <details><summary>¿Mis QR dejan de funcionar si cancelo?</summary><p>Los QR estáticos funcionan para siempre porque el contenido va dentro del código. Los dinámicos dependen de tu suscripción: si cancelas, siguen funcionando hasta el fin del periodo pagado. Después dejan de abrir su contenido, pero no se borran: si vuelves a contratar, la misma liga vuelve a funcionar.</p></details>
         <details><summary>¿Puedo pagar en OXXO o con transferencia?</summary><p>Sí. Aceptamos tarjeta de crédito y débito, pago en efectivo en OXXO y transferencia SPEI. Los planes anuales también se pueden pagar en una sola exhibición.</p></details>
         <details><summary>¿Emiten factura?</summary><p>Todavía no emitimos factura electrónica (CFDI) desde la plataforma. Te avisaremos por correo en cuanto esté disponible.</p></details>
-        <details><summary>¿Qué datos ven de quien escanea mi QR?</summary><p>Fecha y hora, tipo de dispositivo, sistema operativo y navegador. No guardamos nombres, teléfonos ni direcciones IP: solo una huella cifrada de la IP, que no permite saber cuál era.</p></details>
+        <details><summary>¿Qué datos ven de quien escanea mi QR?</summary><p>Fecha y hora, país y ciudad aproximados, tipo de dispositivo, sistema operativo y navegador. No guardamos nombres, teléfonos ni direcciones IP: la ubicación se calcula al momento y de la IP solo queda una huella cifrada, que no permite saber cuál era.</p></details>
         <details><summary>¿Puedo cambiar de plan después?</summary><p>Cuando quieras. Con cobro automático con tarjeta, el cambio aplica de inmediato y se ajusta la diferencia proporcional: pagas la diferencia al subir y recibes un saldo a favor al bajar. Si pagas por periodo (OXXO, SPEI o pago único con tarjeta), el plan nuevo empieza en cuanto se confirma tu pago.</p></details>
       </div>
     </div>

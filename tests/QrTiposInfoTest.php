@@ -53,6 +53,19 @@ foreach (array_keys(QR_TIPOS_DINAMICOS) as $tipo) {
 }
 restore_error_handler();
 
+// --- Estadísticas de ejemplo ---
+foreach (array_keys(QR_TIPOS_DINAMICOS) as $tipo) {
+    $est = qr_tipo_ejemplo_estadisticas($tipo, 30, new DateTimeImmutable('2026-11-15'));
+    $prueba("$tipo: 30 días que terminan hoy", count($est['serie']) === 30 && array_key_last($est['serie']) === '2026-11-15');
+    $prueba("$tipo: total, promedio y mejor día cuadran", $est['total'] === array_sum($est['serie']) && $est['total'] > 0
+        && $est['mejor_n'] === max($est['serie']) && $est['serie'][$est['mejor']] === $est['mejor_n'] && $est['unicos'] <= $est['total']);
+    $prueba("$tipo: 24 horas", count($est['horas']) === 24 && $est['horas'][3] < $est['horas'][$est['hora_pico']]);
+    $prueba("$tipo: porcentajes suman 100", array_sum($est['dispositivo']) === 100 && array_sum($est['sistema']) === 100 && min($est['sistema']) >= 0);
+    $prueba("$tipo: siempre los mismos datos", $est === qr_tipo_ejemplo_estadisticas($tipo, 30, new DateTimeImmutable('2026-11-15')));
+}
+$evento = qr_tipo_ejemplo_estadisticas('evento', 30, new DateTimeImmutable('2026-11-15'));
+$prueba('Evento: el mejor día es el del evento', $evento['mejor'] === '2026-11-12');
+
 $prueba('Tipo inexistente', qr_tipo_info('texto') === null && qr_tipo_info('nada') === null);
 $prueba('La página pública no frena enlaces', (function () {
     ob_start();

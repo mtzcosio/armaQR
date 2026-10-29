@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/qr_tipos_info.php';
+require_once __DIR__ . '/includes/estadisticas_vista.php';
 
 $tipo = (string) ($_GET['t'] ?? '');
 $info = qr_tipo_info($tipo);
@@ -20,6 +21,12 @@ $redirige = qr_tipo_usa_url($tipo);
 // Con sesión, el botón abre "Crear QR" con este tipo elegido; sin sesión, el registro.
 $conSesion = App\Core\Auth::user() !== null;
 $crear = $conSesion ? url_app('crear.php', ['tipo' => $tipo]) : url('registro.php?plan=pro');
+
+// Estadísticas de ejemplo (datos ficticios con la forma típica de este tipo) y sus gráficas.
+$est = qr_tipo_ejemplo_estadisticas($tipo);
+$grafDias = ['tipo' => 'line', 'etiquetas' => array_map(fn($f) => date('j/n', strtotime($f)), array_keys($est['serie'])),
+             'series' => [['nombre' => 'Escaneos', 'datos' => array_values($est['serie'])]]];
+$grafDisp = ['tipo' => 'doughnut', 'etiquetas' => array_keys($est['dispositivo']), 'series' => [['nombre' => 'Dispositivo', 'datos' => array_values($est['dispositivo'])]]];
 
 pagina_inicio($info['titulo'], 'publico', '', [], $info['intro']);
 cabecera_publica();
@@ -72,7 +79,52 @@ cabecera_publica();
     </div>
   </section>
 
-  <section class="seccion">
+  <section class="seccion" id="estadisticas">
+    <div class="envoltura">
+      <div class="seccion-cabeza">
+        <h2>Así se ven tus estadísticas</h2>
+        <p>Un QR de <?= e($datos['nombre']) ?> durante 30 días, con datos de ejemplo. Con un QR dinámico ves esto de cada código desde tu cuenta.</p>
+      </div>
+      <div class="estadisticas-ejemplo">
+        <span class="estadisticas-ejemplo-sello"><?= icono('grafica', 15) ?> Datos de ejemplo</span>
+        <section class="cifras" aria-label="Resumen de ejemplo">
+          <div class="cifra destaca"><span>Escaneos</span><strong><?= numero($est['total']) ?></strong><small>Últimos 30 días</small></div>
+          <div class="cifra"><span>Personas distintas</span><strong><?= numero($est['unicos']) ?></strong><small>Aproximado por IP anónima</small></div>
+          <div class="cifra"><span>Promedio diario</span><strong><?= numero($est['promedio']) ?></strong><small>Escaneos por día</small></div>
+          <div class="cifra"><span>Mejor día</span><strong><?= e(fecha_corta($est['mejor'])) ?></strong><small><?= numero($est['mejor_n']) ?> escaneos</small></div>
+        </section>
+
+        <section class="caja">
+          <div class="caja-cabeza"><div><h3>Escaneos por día</h3><p>Últimos 30 días</p></div></div>
+          <div class="caja-cuerpo"><div class="grafica"><canvas data-grafica='<?= e(json_encode($grafDias)) ?>' aria-label="Gráfica de ejemplo: escaneos por día" role="img"></canvas></div></div>
+        </section>
+
+        <section class="caja">
+          <div class="caja-cabeza"><div><h3>Día y hora</h3><p>Cuándo lo escanean durante la semana</p></div></div>
+          <div class="caja-cuerpo"><?= estadisticas_mapa_calor($est['mapa']) ?></div>
+        </section>
+
+        <div class="rejilla-mitad">
+          <section class="caja">
+            <div class="caja-cabeza"><div><h3>¿Desde dónde lo escanean?</h3><p>País y ciudad aproximados</p></div></div>
+            <div class="caja-cuerpo"><?= estadisticas_ubicacion($est, false) ?></div>
+          </section>
+          <section class="caja">
+            <div class="caja-cabeza"><h3>Dispositivo</h3></div>
+            <div class="caja-cuerpo">
+              <div class="grafica grafica-chica"><canvas data-grafica='<?= e(json_encode($grafDisp)) ?>' aria-label="Gráfica de ejemplo: escaneos por dispositivo" role="img"></canvas></div>
+              <p class="texto-chico texto-gris mt"><?= e(implode(' · ', array_map(fn($so, $pct) => "$so $pct%", array_keys($est['sistema']), $est['sistema']))) ?></p>
+            </div>
+          </section>
+        </div>
+
+        <p class="texto-chico texto-gris">Además, puedes exportar cada escaneo a CSV para abrirlo en Excel.</p>
+        <p class="estadisticas-ejemplo-lectura"><?= icono('rayo', 18) ?> <span><?= e($est['lectura']) ?></span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion seccion-papel">
     <div class="envoltura">
       <div class="seccion-cabeza"><h2>Cómo crearlo</h2></div>
       <div class="pasos">
@@ -93,7 +145,7 @@ cabecera_publica();
     </div>
   </section>
 
-  <section class="seccion seccion-papel">
+  <section class="seccion">
     <div class="envoltura">
       <div class="seccion-cabeza"><h2>Otros tipos de QR dinámico</h2></div>
       <ul class="tipos-landing">
@@ -118,4 +170,4 @@ cabecera_publica();
 </main>
 
 <?php pie_publico(); ?>
-<?php pagina_fin(); ?>
+<?php pagina_fin('publico', [CDN_CHART]); ?>

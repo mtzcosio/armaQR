@@ -45,7 +45,7 @@ $prueba('email inválido', $falla('email', ['email' => 'no-es-correo']) !== null
 $prueba('texto vacío', $falla('texto', ['texto' => '']) !== null);
 $prueba('tipo desconocido', $falla('sms', []) !== null);
 $prueba('texto se recorta a 500', mb_strlen($texto('texto', ['texto' => str_repeat('é', 600)])) === 500);
-$prueba('Hay 18 tipos dinámicos', count(QR_TIPOS_DINAMICOS) === 18);
+$prueba('Hay 19 tipos dinámicos', count(QR_TIPOS_DINAMICOS) === 19);
 $prueba('Texto solo es estático', isset(QR_TIPOS['texto']) && !isset(QR_TIPOS_DINAMICOS['texto']));
 $prueba('Solo URL, WhatsApp, Facebook e Instagram redirigen siempre', array_values(array_filter(array_keys(QR_TIPOS_DINAMICOS), 'qr_tipo_usa_url')) === ['url', 'facebook', 'instagram', 'whatsapp']);
 

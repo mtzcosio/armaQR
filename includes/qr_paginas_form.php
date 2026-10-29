@@ -121,6 +121,33 @@ function qr_pagina_item_seccion(string $i, array $s): string
         . '</div>' . qr_pagina_boton_quitar('Quitar sección') . '</div>';
 }
 
+function qr_pagina_item_actividad(string $i, string $j, array $a): string
+{
+    $ruta = fn(string $campo) => ['dias', $i, 'actividades', $j, $campo];
+    return '<div class="lista-item lista-item-chico" data-lista-item><div class="fila-campos">'
+        . qr_pagina_entrada('itinerario', $ruta('hora'), 'Hora', (string) ($a['hora'] ?? ''), ['tipo' => 'time', 'requerido' => true])
+        . qr_pagina_entrada('itinerario', $ruta('fin'), 'Termina', (string) ($a['fin'] ?? ''), ['tipo' => 'time'])
+        . qr_pagina_entrada('itinerario', $ruta('titulo'), 'Actividad', (string) ($a['titulo'] ?? ''), ['max' => 120, 'placeholder' => 'Ceremonia religiosa', 'requerido' => true, 'completo' => true])
+        . qr_pagina_entrada('itinerario', $ruta('lugar'), 'Lugar', (string) ($a['lugar'] ?? ''), ['max' => 120, 'placeholder' => 'Jardín principal'])
+        . qr_pagina_entrada('itinerario', $ruta('descripcion'), 'Detalle', (string) ($a['descripcion'] ?? ''), ['max' => 300, 'placeholder' => 'Llega 15 minutos antes'])
+        . '</div>' . qr_pagina_boton_quitar('Quitar actividad') . '</div>';
+}
+
+function qr_pagina_item_dia(string $i, array $d): string
+{
+    $actividades = is_array($d['actividades'] ?? null) && $d['actividades'] ? $d['actividades'] : ['0' => []];
+    $items = '';
+    foreach ($actividades as $j => $a) {
+        $items .= qr_pagina_item_actividad($i, (string) $j, is_array($a) ? $a : []);
+    }
+    return '<div class="lista-item lista-seccion" data-lista-item><div class="lista-item-cuerpo"><div class="fila-campos">'
+        . qr_pagina_entrada('itinerario', ['dias', $i, 'nombre'], 'Nombre del día', (string) ($d['nombre'] ?? ''), ['max' => 80, 'placeholder' => 'Día 1 · Bienvenida'])
+        . qr_pagina_entrada('itinerario', ['dias', $i, 'fecha'], 'Fecha', (string) ($d['fecha'] ?? ''), ['tipo' => 'date'])
+        . '</div>'
+        . qr_pagina_lista('', $items, qr_pagina_item_actividad($i, '__j__', []), '__j__', QR_PAGINA_MAX_ACTIVIDADES, 'Agregar actividad')
+        . '</div>' . qr_pagina_boton_quitar('Quitar día') . '</div>';
+}
+
 /** Campos de redes sociales (pg[tipo][redes][red]). */
 function qr_pagina_campos_redes(string $tipo, array $redes): string
 {
@@ -272,6 +299,23 @@ function qr_pagina_formularios(array $valores, array $guardados): void
                     . qr_pagina_entrada($tipo, ['lugar'], 'Lugar', $val('lugar'), ['max' => 120, 'placeholder' => 'Foro Luna'])
                     . qr_pagina_entrada($tipo, ['direccion'], 'Dirección', $val('direccion'), ['max' => 250, 'placeholder' => 'Av. Juárez 10, Centro, CDMX']));
                 echo $grupo('Boletos o registro', 'Un botón para comprar o registrarse', 'externo', $boton('Comprar boletos', 'Enlace de boletos o registro'), false);
+                break;
+
+            case 'itinerario':
+                $dias = is_array($v['dias'] ?? null) && $v['dias'] ? $v['dias'] : ['0' => []];
+                $items = '';
+                foreach ($dias as $i => $d) {
+                    $items .= qr_pagina_item_dia((string) $i, is_array($d) ? $d : []);
+                }
+                echo $grupo('Información del evento', 'Imagen, nombre, descripción y lugar', 'calendario',
+                    $imagen('Imagen')
+                    . $titulo('Nombre del evento', true, 'Boda de Ana y Luis')
+                    . $descripcion('Todo lo que necesitas saber para disfrutar el día')
+                    . qr_pagina_entrada($tipo, ['lugar'], 'Lugar', $val('lugar'), ['max' => 120, 'placeholder' => 'Hacienda San Gabriel'])
+                    . qr_pagina_entrada($tipo, ['direccion'], 'Dirección', $val('direccion'), ['max' => 250, 'placeholder' => 'Carretera a Tepoztlán km 5, Morelos']));
+                echo $grupo('Programa', 'Días y actividades en el orden en que suceden', 'reloj',
+                    '<p class="ayuda campo-completo">Captura las actividades en orden. Las que pasan de medianoche (por ejemplo, a las 02:00) cuentan como de madrugada. Si el evento dura un solo día, deja el nombre y la fecha del día vacíos.</p>'
+                    . qr_pagina_lista('', $items, qr_pagina_item_dia('__i__', []), '__i__', QR_PAGINA_MAX_DIAS, 'Agregar día'));
                 break;
 
             case 'empresa':

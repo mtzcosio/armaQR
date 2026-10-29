@@ -129,6 +129,27 @@ $prueba('Página: enlace escapado', str_contains($publica, 'href="https://a.mx/&
 $prueba('Página: color del QR como acento', str_contains($publica, '--acento: #e4007c'));
 $prueba('Texto sobre acento oscuro es blanco', qr_pagina_sobre_acento('#172036') === '#ffffff' && qr_pagina_sobre_acento('#ffe680') === '#172036');
 
+// --- Itinerario ---
+$actividad = fn(string $hora, string $titulo, string $fin = '') => ['hora' => $hora, 'fin' => $fin, 'titulo' => $titulo, 'descripcion' => '', 'lugar' => ''];
+$itinerario = $pagina('itinerario', ['titulo' => 'Boda', 'dias' => [
+    ['nombre' => 'La boda', 'fecha' => '2026-11-07', 'actividades' => [$actividad('17:00', 'Ceremonia'), $actividad('', ''), $actividad('21:00', 'Fiesta', '03:00'), $actividad('02:00:00', 'Camiones')]],
+    ['nombre' => '', 'fecha' => '', 'actividades' => [$actividad('', '')]],
+]])['campos'];
+$prueba('Itinerario: ignora días y actividades vacíos', count($itinerario['dias']) === 1 && count($itinerario['dias'][0]['actividades']) === 3);
+$prueba('Itinerario: respeta el orden y quita segundos', array_column($itinerario['dias'][0]['actividades'], 'hora') === ['17:00', '21:00', '02:00']);
+$prueba('Itinerario: termina después de medianoche', $itinerario['dias'][0]['actividades'][1]['fin'] === '03:00');
+$prueba('Itinerario: sin actividades', $falla('itinerario', ['titulo' => 'Boda', 'dias' => [['nombre' => 'Día 1']]]) !== null);
+$prueba('Itinerario: actividad sin hora', $falla('itinerario', ['titulo' => 'Boda', 'dias' => [['actividades' => [$actividad('', 'Cena')]]]]) !== null);
+$prueba('Itinerario: hora inválida', $falla('itinerario', ['titulo' => 'Boda', 'dias' => [['actividades' => [$actividad('25:00', 'Cena')]]]]) !== null);
+$prueba('Itinerario: sin título', $falla('itinerario', ['dias' => [['actividades' => [$actividad('20:00', 'Cena')]]]]) !== null);
+$dia = $itinerario['dias'][0];
+$en = fn(string $momento) => qr_pagina_actividad_actual($dia, new DateTimeImmutable($momento));
+$prueba('Itinerario: antes de empezar no hay actividad en curso', $en('2026-11-07 16:00') === null);
+$prueba('Itinerario: en curso', $en('2026-11-07 18:30') === 0 && $en('2026-11-07 23:00') === 1);
+$prueba('Itinerario: de madrugada es del día siguiente', $en('2026-11-08 02:30') === 2);
+$prueba('Itinerario: la última sin fin dura dos horas', $en('2026-11-08 04:30') === null);
+$prueba('Itinerario: otro día no marca nada', $en('2026-11-10 18:30') === null);
+
 // --- Colores de la página (paletas) ---
 $prueba('Estilo: colores válidos', qr_pagina_estilo(['pagina_estilo' => ['primario' => '#2563EB', 'secundario' => '#eaf0fd']]) === ['primario' => '#2563eb', 'secundario' => '#eaf0fd']);
 $prueba('Estilo: inválido usa la paleta predeterminada', qr_pagina_estilo(['pagina_estilo' => ['primario' => 'red;x', 'secundario' => ['#fff']]]) === ['primario' => QR_PAGINA_PALETAS[0][0], 'secundario' => QR_PAGINA_PALETAS[0][1]]);
@@ -167,4 +188,4 @@ if ($fallas) {
     fwrite(STDERR, "Fallaron:\n  - " . implode("\n  - ", $fallas) . "\n");
     exit(1);
 }
-echo "Páginas de QR: validación de los 18 tipos, archivos, tiendas de apps, .vcf/.ics, formularios y escape: OK\n";
+echo "Páginas de QR: validación de los " . count(QR_TIPOS_DINAMICOS) . " tipos, archivos, tiendas de apps, .vcf/.ics, formularios y escape: OK\n";

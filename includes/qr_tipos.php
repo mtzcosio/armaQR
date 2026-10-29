@@ -20,6 +20,7 @@ const QR_TIPOS_DINAMICOS = [
     'cupon'     => ['nombre' => 'Cupón',      'descripcion' => 'Comparte un cupón', 'modo' => 'pagina', 'icono' => 'cupon'],
     'wifi'      => ['nombre' => 'Wi-Fi',      'descripcion' => 'Comparte cómo conectarse a tu red Wi-Fi', 'modo' => 'pagina', 'icono' => 'wifi'],
     'evento'    => ['nombre' => 'Evento',     'descripcion' => 'Promociona cualquier evento', 'modo' => 'pagina', 'icono' => 'calendario'],
+    'itinerario' => ['nombre' => 'Itinerario', 'descripcion' => 'Comparte el programa de tu evento hora por hora', 'modo' => 'pagina', 'icono' => 'reloj'],
     'empresa'   => ['nombre' => 'Empresa',    'descripcion' => 'Comparte la información de tu negocio', 'modo' => 'pagina', 'icono' => 'edificio'],
     'video'     => ['nombre' => 'Video',      'descripcion' => 'Muestra un video de YouTube o Vimeo', 'modo' => 'pagina', 'icono' => 'video'],
     'imagenes'  => ['nombre' => 'Imágenes',   'descripcion' => 'Comparte varias imágenes', 'modo' => 'pagina', 'icono' => 'imagen'],

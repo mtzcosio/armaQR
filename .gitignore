@@ -20,3 +20,6 @@ desktop.ini
 *.log
 *.bak
 *.zip
+
+# Base de ubicaciones por IP (la descarga database/actualizar_geoip.php)
+database/geoip/

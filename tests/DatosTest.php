@@ -48,7 +48,8 @@ foreach ($semana as $qrId => $fila) {
 }
 
 $des = datos_desgloses(30);
-if (count($des['horas']) !== 24 || !is_array($des['ciudades'])) {
+if (count($des['horas']) !== 24 || !is_array($des['ciudades']) || !is_array($des['paises'])
+    || count($des['mapa']) !== 7 || count($des['mapa'][0]) !== 24 || !is_int($des['sin_ubicacion'])) {
     $fallas[] = 'datos_desgloses() no tiene la forma esperada.';
 }
 

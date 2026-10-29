@@ -47,6 +47,56 @@ function qr_pagina_sobre_acento(string $hex): string
     return 0.2126 * $lin($r) + 0.7152 * $lin($g) + 0.0722 * $lin($b) > 0.4 ? '#172036' : '#ffffff';
 }
 
+/**
+ * Índice de la actividad en curso de un día del itinerario, o null. Solo cuenta si el día tiene
+ * fecha y es hoy (o ayer, para lo que pasa de madrugada). Las actividades van en el orden capturado:
+ * una hora menor que la anterior es del día siguiente. Sin hora de fin, una actividad dura hasta que
+ * empieza la siguiente; la última, dos horas.
+ */
+function qr_pagina_actividad_actual(array $dia, ?DateTimeImmutable $ahora = null): ?int
+{
+    $ahora ??= new DateTimeImmutable();
+    $fecha = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($dia['fecha'] ?? ''));
+    if ($fecha === false) {
+        return null;
+    }
+    $diasDespues = (int) $fecha->diff($ahora->setTime(0, 0))->format('%r%a');
+    if ($diasDespues < 0 || $diasDespues > 1) {
+        return null;
+    }
+    $minutos = fn(string $h) => (int) substr($h, 0, 2) * 60 + (int) substr($h, 3, 2);
+    $ahoraMin = $diasDespues * 1440 + $minutos($ahora->format('H:i'));
+
+    $actual = null;
+    $finActual = null;
+    $previo = -1;
+    foreach ($dia['actividades'] as $i => $a) {
+        if ($a['hora'] === '') {
+            continue;
+        }
+        $inicio = $minutos($a['hora']);
+        while ($inicio < $previo) {
+            $inicio += 1440; // pasó la medianoche
+        }
+        $previo = $inicio;
+        if ($inicio > $ahoraMin) {
+            if ($actual !== null && $dia['actividades'][$actual]['fin'] === '') {
+                $finActual = $inicio; // dura hasta que empieza la siguiente
+            }
+            break;
+        }
+        $actual = $i;
+        $finActual = $inicio + 120; // si no hay siguiente ni hora de fin
+        if ($a['fin'] !== '') {
+            $finActual = $minutos($a['fin']);
+            while ($finActual <= $inicio) {
+                $finActual += 1440;
+            }
+        }
+    }
+    return $actual !== null && $ahoraMin < $finActual ? $actual : null;
+}
+
 /** Título visible de la página (el nombre del QR es privado: nunca se muestra). */
 function qr_pagina_titulo(string $tipo, array $c): string
 {
@@ -96,7 +146,7 @@ function qr_pagina_mostrar(array $qr, string $modo = 'publico'): void
     $titulo = qr_pagina_titulo($tipo, $c);
     $base = ($qr['codigo_corto'] ?? '') !== '' ? url('r/' . $qr['codigo_corto']) : '#';
     $marca = $qr['marca_agua'] === null || (int) $qr['marca_agua'] === 1;
-    $portada = in_array($tipo, ['cupon', 'evento', 'mp3'], true);
+    $portada = in_array($tipo, ['cupon', 'evento', 'itinerario', 'mp3'], true);
     // En el teléfono (vista previa y ejemplos) los botones no salen de la página: solo se muestran.
     $enlace = fn(string $href, string $texto, string $clase = 'micrositio-boton', string $extra = '') => $modo === 'telefono'
         ? '<a class="' . $clase . '" href="#" role="button" aria-disabled="true" onclick="return false">' . $texto . '</a>'
@@ -220,6 +270,36 @@ function qr_pagina_mostrar(array $qr, string $modo = 'publico'): void
           <?php if ($c['boton_url'] !== '') echo $enlace($c['boton_url'], e($c['boton_texto'] !== '' ? $c['boton_texto'] : 'Boletos y registro')); ?>
           <?= $enlace($base . '?descargar=ics', icono('descargar', 18) . ' Agregar a mi calendario', $c['boton_url'] !== '' ? 'micrositio-boton secundario' : 'micrositio-boton') ?>
         <?php break;
+
+        case 'itinerario':
+          if ($c['lugar'] !== '' || $c['direccion'] !== ''): ?>
+            <ul class="micrositio-datos">
+              <li><span>Lugar</span><?php if ($c['direccion'] !== ''): ?><a href="<?= e(qr_pagina_mapa(trim($c['lugar'] . ' ' . $c['direccion']))) ?>" rel="noopener"><?= e(implode(', ', array_filter([$c['lugar'], $c['direccion']]))) ?></a><?php else: ?><strong><?= e($c['lugar']) ?></strong><?php endif; ?></li>
+            </ul>
+          <?php endif;
+          if (!$c['dias']) echo qr_pagina_vacio('Agrega actividades para ver el programa.', 'reloj');
+          foreach ($c['dias'] as $dia):
+            $actual = qr_pagina_actividad_actual($dia); ?>
+            <section class="micrositio-seccion">
+              <?php if ($dia['nombre'] !== '' || $dia['fecha'] !== ''): ?>
+                <h2><?= e($dia['nombre'] !== '' ? $dia['nombre'] : ucfirst(qr_pagina_fecha_larga($dia['fecha'], false))) ?></h2>
+                <?php if ($dia['nombre'] !== '' && $dia['fecha'] !== ''): ?><p class="micrositio-dia-fecha"><?= e(ucfirst(qr_pagina_fecha_larga($dia['fecha'], false))) ?></p><?php endif; ?>
+              <?php endif; ?>
+              <ol class="micrositio-itinerario">
+                <?php foreach ($dia['actividades'] as $i => $a): ?>
+                  <li<?= $i === $actual ? ' class="ahora" aria-current="time"' : '' ?>>
+                    <span class="micrositio-hora"><?= e($a['hora']) ?><?php if ($a['fin'] !== ''): ?><small><?= e($a['fin']) ?></small><?php endif; ?></span>
+                    <div>
+                      <strong><?= e($a['titulo']) ?></strong><?php if ($i === $actual): ?> <span class="micrositio-ahora">Ahora</span><?php endif; ?>
+                      <?php if ($a['descripcion'] !== ''): ?><p><?= e($a['descripcion']) ?></p><?php endif; ?>
+                      <?php if ($a['lugar'] !== ''): ?><p class="micrositio-lugar"><?= icono('ubicacion', 14) ?> <?= e($a['lugar']) ?></p><?php endif; ?>
+                    </div>
+                  </li>
+                <?php endforeach; ?>
+              </ol>
+            </section>
+          <?php endforeach;
+          break;
 
         case 'empresa': ?>
           <?php if ($c['telefono'] !== '') echo $enlace('tel:' . preg_replace('/[^\d+]/', '', $c['telefono']), icono('telefono', 18) . ' Llamar'); ?>
