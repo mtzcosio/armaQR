@@ -190,6 +190,12 @@ final class GeoIpLector
     }
 }
 
+/** ¿Hay base de ubicaciones local que se pueda leer? (Sin ella, solo Cloudflare da ubicación.) */
+function geoip_disponible(string $archivo = GEOIP_ARCHIVO): bool
+{
+    return is_file($archivo) && is_readable($archivo) && filesize($archivo) > 1048576;
+}
+
 /** Nombre en español si la base lo trae; si no, en inglés. */
 function geoip_nombre(?array $nombres): ?string
 {

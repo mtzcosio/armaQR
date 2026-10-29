@@ -2,6 +2,7 @@
 
 // Carga el layout común de la aplicación y los helpers de HTML, iconos y URLs.
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/geoip.php';
 App\Core\Auth::requireAdmin();
 
 // Datos de negocio desde la base de datos (solo cuentas de clientes).
@@ -53,6 +54,10 @@ pagina_inicio('Resumen', 'admin', 'resumen');
     <a class="boton boton-fantasma" href="<?= url('admin/usuarios.php') ?>"><?= icono('usuarios', 17) ?> Ver usuarios</a>
   </div>
 </div>
+
+<?php if (!geoip_disponible()): ?>
+  <?= aviso('info', 'Los escaneos se están guardando sin país ni ciudad: falta la base de ubicaciones en este servidor. Corre «php database/actualizar_geoip.php» (y prográmalo cada mes con cron) o sube database/geoip/ciudades.mmdb.') ?>
+<?php endif; ?>
 
 <!-- Tarjetas de resumen: muestran los ingresos, usuarios, conversión y escaneos principales -->
 <section class="cifras" aria-label="Indicadores principales">

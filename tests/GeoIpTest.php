@@ -95,6 +95,7 @@ foreach ([[24, 4], [28, 4], [32, 4], [24, 6], [28, 6]] as [$tam, $version]) {
     $prueba("$etiqueta: IP privada", geoip_buscar('192.168.1.10', $ruta) === null && geoip_buscar('127.0.0.1', $ruta) === null);
 }
 $prueba('IPv6 en base IPv4', geoip_buscar('2001:4860:4860::8888', $archivos[0]) === null);
+$prueba('Base disponible solo si existe', !geoip_disponible(sys_get_temp_dir() . '/no-existe.mmdb'));
 $prueba('Sin base, sin ubicación', geoip_buscar('8.8.8.8', sys_get_temp_dir() . '/no-existe.mmdb') === null);
 ini_set('error_log', sys_get_temp_dir() . '/geoip-prueba.log'); // el aviso esperado no ensucia la salida
 $basura = tempnam(sys_get_temp_dir(), 'mmdb');

@@ -37,7 +37,7 @@ php database/migrate_notas_usuario.php
 php database/migrate_pagos.php          # columna usuarios.id_cliente_conekta
 php database/migrate_planes.php         # quita planes.id_externo_mensual/anual (sin uso)
 php database/migrate_paginas_qr.php     # qr_codigos.tipo_contenido de ENUM a VARCHAR(30) (páginas de QR)
-php database/migrate_zona_horaria.php   # una vez: pasa los escaneos guardados en UTC a la hora de CDMX
+php database/migrate_zona_horaria.php   # una vez: sin argumentos muestra los escaneos; con --hasta-id=N pasa a hora de CDMX los guardados en UTC
 php database/actualizar_geoip.php       # cron mensual (día 3): descarga la base de ubicaciones de DB-IP a database/geoip/
 php database/vencer_suscripciones.php   # cron diario: cierra periodos vencidos y regresa a Gratis
 php database/create_admin.php "Nombre" correo@x.com "contraseña"   # crea un admin (o vía ADMIN_NAME/ADMIN_EMAIL/ADMIN_PASSWORD)
@@ -96,7 +96,7 @@ pagina_inicio('Título', 'app', 'clave-menu'); // área: publico | app | admin
 - `qr_pagina_vista.php`: `qr_pagina_mostrar($qr, $modo)`, la página que muestra `r.php` (`publico` o `vista_previa`) y el teléfono de `app/crear.php` (`telefono`, con `$qr['campos']` sin guardar).
   - `r.php?descargar=vcf|ics` sirve los archivos y no cuenta como escaneo.
   - `?vista_previa=1` (dueño o admin) muestra la página sin contar escaneo, aunque el QR esté pausado.
-- `geoip.php`: país, región y ciudad de quien escanea. Usa los encabezados de Cloudflare o la base local `database/geoip/ciudades.mmdb` (DB-IP City Lite, CC BY 4.0; la atribución va en Estadísticas) con un lector MMDB propio (`GeoIpLector`). La IP no se manda a nadie ni se guarda.
+- `geoip.php`: país, región y ciudad de quien escanea. Usa los encabezados de Cloudflare o la base local `database/geoip/ciudades.mmdb` (DB-IP City Lite, CC BY 4.0; la atribución va en Estadísticas) con un lector MMDB propio (`GeoIpLector`). La base no va en git: en cada servidor hay que correr `actualizar_geoip.php`; si falta, el Resumen del admin lo avisa (`geoip_disponible()`). La IP no se manda a nadie ni se guarda.
 - `estadisticas_vista.php`: piezas compartidas por Estadísticas y el ejemplo de `tipo.php`: `estadisticas_ubicacion()` y `estadisticas_mapa_calor()` (día de la semana × hora).
 - `qr_csv.php`: lectura/validación/escritura de CSV para la creación masiva.
 - `correo.php` + `smtp.php`: plantillas de correo desde BD con variables `{{var}}`, cliente SMTP propio (sin PHPMailer). Ver [docs/plantillas-de-correo.md](docs/plantillas-de-correo.md).
